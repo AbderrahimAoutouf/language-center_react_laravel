@@ -1,17 +1,16 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFormik } from 'formik';
 import { Form, Button, Row, Col } from 'react-bootstrap';
 import * as Yup from 'yup';
 import AvatarEdit from '../ProfileCompo/AvatarEdit';
 import axios from "../../api/axios";
 import { UseStateContext } from "../../context/ContextProvider";
-import { useNavigate,useParams } from 'react-router-dom';
-
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function EditTeacher() {
-  const {user,setNotification,setVariant} = UseStateContext();
+  const { user, setNotification, setVariant } = UseStateContext();
   const navigate = useNavigate();
-  const {id} = useParams();
+  const { id } = useParams();
   let x = ""
   if (user && user.role==='admin')
   {
@@ -52,13 +51,13 @@ export default function EditTeacher() {
       cin: Yup.string().required('CIN is required'),
       birthday: Yup.date().required('Birthday is required'),
       gender: Yup.string().required('Gender is required'),
-      email: Yup.string().email('Invalid email address').required('Email is required'),
+      email: Yup.string()
+        .matches(/^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, 'Invalid email address'),
       address: Yup.string().required('Address is required'),
       phone: Yup.string().required('Phone number is required'),
-      diploma: Yup.string().required('Diploma is required'),
+      diploma: Yup.string(),
       hourly_rate: Yup.number().required('Hourly rate is required'),
-      speciality: Yup.string().required('Speciality is required'),
-      // class: Yup.array().required('Class is required'),
+      speciality: Yup.string(),
     }),
     onSubmit: (values) => {
       // Handle form submission and add teacher
@@ -71,7 +70,7 @@ export default function EditTeacher() {
         email: values.email,
         address: values.address,
         phone: values.phone,
-        diploma: values.diploma,
+        diploma: values.diploma === 'Other' ? customDiploma : values.diploma,
         hourly_rate: values.hourly_rate,
         speciality: values.speciality,
       }
@@ -190,11 +189,11 @@ export default function EditTeacher() {
         </Col>
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='email'>Email*</Form.Label>
+          <Form.Label htmlFor='email'>Email</Form.Label> {/* Retiré * */}
           <Form.Control
             id='email'
             type='email'
-            className={`form-control ${formik.errors.email  && formik.touched.email ? 'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.email && formik.touched.email ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('email')}
           />
           {formik.touched.email && formik.errors.email && (
@@ -230,12 +229,12 @@ export default function EditTeacher() {
       </Row>
 
       <Row>
-        <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='speciality'>Speciality*</Form.Label>
+      <Col md={3} className='mb-3'>
+          <Form.Label htmlFor='speciality'>Speciality</Form.Label> {/* Retiré * */}
           <Form.Control
             id='speciality'
             type='text'
-            className={`form-control ${formik.errors.speciality  && formik.touched.speciality ?  'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.speciality && formik.touched.speciality ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('speciality')}
           />
           {formik.touched.speciality && formik.errors.speciality && (
@@ -244,17 +243,24 @@ export default function EditTeacher() {
         </Col>
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='diploma'>Diploma*</Form.Label>
-          <Form.Control
-            id='diploma'
-            type='text'
-            className={`form-control ${formik.errors.diploma  && formik.touched.diploma ? 'is-invalid' : ''}`}
-            {...formik.getFieldProps('diploma')}
-          />
-          {formik.touched.diploma && formik.errors.diploma && (
-            <div className='invalid-feedback'>{formik.errors.diploma}</div>
-          )}
-        </Col>
+                  <Form.Label htmlFor='diploma'>Diploma</Form.Label>
+                  <Form.Select
+                    id='diploma'
+                    className='form-select'
+                    {...formik.getFieldProps('diploma')}
+                    onChange={(e) => {
+                      formik.setFieldValue('diploma', e.target.value);
+                      if (e.target.value !== 'Other') setCustomDiploma("");
+                    }}
+                  >
+                    <option value=''>Select diploma</option>
+                    <option value='Bac'>Bac</option>
+                    <option value='Licence'>Licence</option>
+                    <option value='Master'>Master</option>
+                    <option value='Doctorat'>Doctorat</option>
+                    <option value='Other'>Other</option>
+                  </Form.Select>
+                </Col>
 
         <Col md={3} className='mb-3'>
           <Form.Label htmlFor='hireDate'>Hourly rate*</Form.Label>

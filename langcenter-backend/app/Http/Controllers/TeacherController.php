@@ -29,10 +29,10 @@ class TeacherController extends Controller
             'last_name' => 'required|string',
             'address' => 'required|string',
             'cin' => 'required|string|unique:teachers,cin',
-            'email' => 'required|email|unique:teachers,email',
+            'email' => 'nullable|email|unique:teachers,email', // Changed to nullable
             'phone' => 'required|string|unique:teachers,phone',
-            'diploma' => 'required|string',
-            'speciality' => 'required|string',
+            'diploma' => 'nullable|string', // Changed to nullable
+            'speciality' => 'nullable|string', // Changed to nullable
             'hourly_rate' => 'required|integer',
             'birthday' => 'required|date',
             'gender' => 'required|string'
@@ -42,10 +42,10 @@ class TeacherController extends Controller
         $teacher->last_name = $request->last_name;
         $teacher->address = $request->address;
         $teacher->cin = $request->cin;
-        $teacher->email = $request->email;
+        $teacher->email = $request->email ?? null;
         $teacher->phone = $request->phone;
-        $teacher->diploma = $request->diploma;
-        $teacher->speciality = $request->speciality;
+        $teacher->diploma = $request->diploma ?? null;
+        $teacher->speciality = $request->speciality ?? null;
         $teacher->hourly_rate = $request->hourly_rate;
         $teacher->birthday = $request->birthday;
         $teacher->hiredate = now();
@@ -79,7 +79,7 @@ class TeacherController extends Controller
                 Rule::unique('teachers')->ignore($teacher->id),
             ],
             'email' => [
-                'required',
+                'nullable',
                 'email',
                 Rule::unique('teachers')->ignore($teacher->id),
             ],
@@ -89,8 +89,8 @@ class TeacherController extends Controller
                 'max:255',
                 Rule::unique('teachers')->ignore($teacher->id),
             ],
-            'diploma' => 'required|string',
-            'speciality' => 'required|string',
+            'diploma' => 'nullable|string',
+            'speciality' => 'nullable|string',
             'hourly_rate' => 'required|integer',
             'birthday' => 'required|date',
             'gender' => 'required|string'

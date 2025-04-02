@@ -19,11 +19,11 @@ return new class extends Migration
             $table->date('birthday');
             $table->string('address');
             $table->string('gender');
-            $table->string('speciality');
-            $table->string('diploma');
+            $table->string('speciality')->nullable();
+            $table->string('diploma')->nullable();
             $table->date('hiredate');
             $table->integer('hourly_rate');
-            $table->string('email')->unique();
+            $table->string('email')->unique()->nullable();
             $table->string('phone')->unique();
             $table->timestamps();
         });

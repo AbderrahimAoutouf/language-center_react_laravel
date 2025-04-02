@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState } from 'react';
 import { useFormik } from 'formik';
 import { Form, Button, Row, Col } from 'react-bootstrap';
 import * as Yup from 'yup';
@@ -8,27 +8,13 @@ import { UseStateContext } from "../../context/ContextProvider";
 import { useNavigate } from 'react-router-dom';
 
 export default function AddTeacher() {
-  const {user,setNotification,setVariant} = UseStateContext();
+  const { user, setNotification, setVariant } = UseStateContext();
   const navigate = useNavigate();
-  let x = ""
-  if (user && user.role==='admin')
-  {
-      x = ""
-  } else if (user && user.role==='director')
-  {
-      x="/director"
-  } else{
-    x = "/secretary"
-  }
-  // const [selectedClasses, setSelectedClasses] = useState([]);
-  //   const [classData, setClassData] = useState([]);
-  //   // Fetch available courses and levels from the database
-  // // Replace this with your actual API call to fetch data
-  // useEffect(() => {
-  //   axios.get('/api/classes').then((res) => {
-  //     setClassData(res.data);
-  //   });
-  // }, []);
+
+  let x = user?.role === 'admin' ? "" : user?.role === 'director' ? "/director" : "/secretary";
+
+  const [customDiploma, setCustomDiploma] = useState("");
+
   const formik = useFormik({
     initialValues: {
       firstName: '',
@@ -42,7 +28,6 @@ export default function AddTeacher() {
       diploma: '',
       hourly_rate: '',
       speciality: '',
-      // class: [],
     },
     validationSchema: Yup.object({
       firstName: Yup.string().required('First name is required'),
@@ -50,16 +35,15 @@ export default function AddTeacher() {
       cin: Yup.string().required('CIN is required'),
       birthday: Yup.date().required('Birthday is required'),
       gender: Yup.string().required('Gender is required'),
-      email: Yup.string(),
+      email: Yup.string()
+        .matches(/^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, 'Invalid email format'),
       address: Yup.string().required('Address is required'),
       phone: Yup.string().required('Phone number is required'),
       diploma: Yup.string(),
       hourly_rate: Yup.number().required('Hourly rate is required'),
       speciality: Yup.string(),
-      // class: Yup.array().required('Class is required'),
     }),
     onSubmit: (values) => {
-      // Handle form submission and add teacher
       const postData = {
         first_name: values.firstName,
         last_name: values.lastName,
@@ -69,33 +53,30 @@ export default function AddTeacher() {
         email: values.email,
         address: values.address,
         phone: values.phone,
-        diploma: values.diploma,
+        diploma: values.diploma === 'Other' ? customDiploma : values.diploma,
         hourly_rate: values.hourly_rate,
         speciality: values.speciality,
-      }
-      axios.post('/api/teachers', postData).then((res) => {
-            setNotification("Student added successfully");
-            setVariant("success");
-            setTimeout(() => {
-              setNotification("");
-              setVariant("");
-            }, 3000);
-            navigate(`${x}/teacher`);
+      };
+
+      axios.post('/api/teachers', postData).then(() => {
+        setNotification("Teacher added successfully");
+        setVariant("success");
+        setTimeout(() => {
+          setNotification("");
+          setVariant("");
+        }, 3000);
+        navigate(`${x}/teacher`);
       }).catch((error) => {
         if (error.response && error.response.status === 422) {
           formik.setErrors(error.response.data.errors);
         }
-      }
-      );
+      });
     },
   });
-
-
 
   return (
     <Form onSubmit={formik.handleSubmit} className='addTeacher'>
       <h1>Add New Teacher</h1>
-
       <Row>
         <Col md={3} className='mb-3'>
           <Form.Label htmlFor='firstName'>First Name*</Form.Label>
@@ -168,7 +149,7 @@ export default function AddTeacher() {
         </Col>
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='email'>Email*</Form.Label>
+          <Form.Label htmlFor='email'>Email</Form.Label> {/* Removed * */}
           <Form.Control
             id='email'
             type='email'
@@ -209,7 +190,7 @@ export default function AddTeacher() {
 
       <Row>
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='speciality'>Speciality*</Form.Label>
+          <Form.Label htmlFor='speciality'>Speciality</Form.Label> {/* Removed * */}
           <Form.Control
             id='speciality'
             type='text'
@@ -221,18 +202,39 @@ export default function AddTeacher() {
           )}
         </Col>
 
+
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='diploma'>Diploma*</Form.Label>
-          <Form.Control
+          <Form.Label htmlFor='diploma'>Diploma</Form.Label>
+          <Form.Select
             id='diploma'
-            type='text'
-            className={`form-control ${formik.errors.diploma  && formik.touched.diploma ? 'is-invalid' : ''}`}
+            className='form-select'
             {...formik.getFieldProps('diploma')}
-          />
-          {formik.touched.diploma && formik.errors.diploma && (
-            <div className='invalid-feedback'>{formik.errors.diploma}</div>
-          )}
+            onChange={(e) => {
+              formik.setFieldValue('diploma', e.target.value);
+              if (e.target.value !== 'Other') setCustomDiploma("");
+            }}
+          >
+            <option value=''>Select diploma</option>
+            <option value='Bac'>Bac</option>
+            <option value='Licence'>Licence</option>
+            <option value='Master'>Master</option>
+            <option value='Doctorat'>Doctorat</option>
+            <option value='Other'>Other</option>
+          </Form.Select>
         </Col>
+
+        {formik.values.diploma === 'Other' && (
+          <Col md={3} className='mb-3'>
+            <Form.Label htmlFor='customDiploma'>Specify Diploma</Form.Label>
+            <Form.Control
+              id='customDiploma'
+              type='text'
+              className='form-control'
+              value={customDiploma}
+              onChange={(e) => setCustomDiploma(e.target.value)}
+            />
+          </Col>
+        )}
 
         <Col md={3} className='mb-3'>
           <Form.Label htmlFor='hireDate'>Hourly rate*</Form.Label>
