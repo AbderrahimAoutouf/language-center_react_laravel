@@ -17,14 +17,14 @@ class Teacher extends Model
         'last_name',
         'address',
         'cin',
-        'birthday',
-        'gender',
-        'speciality',
-        'diploma',
-        'hiredate',
-        'hourly_rate',
         'email',
         'phone',
+        'diploma',
+        'speciality',
+        'hourly_rate',
+        'birthday',
+        'hiredate',
+        'gender',
     ];
 
     public function classes()

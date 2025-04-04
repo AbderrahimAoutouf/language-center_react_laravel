@@ -11,25 +11,18 @@ export default function EditTeacher() {
   const { user, setNotification, setVariant } = UseStateContext();
   const navigate = useNavigate();
   const { id } = useParams();
-  let x = ""
-  if (user && user.role==='admin')
-  {
-      x = ""
-  } else if (user && user.role==='director')
-  {
-      x="/director"
-  } else{
-    x = "/secretary"
+  let x = "";
+  if (user && user.role === 'admin') {
+    x = "";
+  } else if (user && user.role === 'director') {
+    x = "/director";
+  } else {
+    x = "/secretary";
   }
-  // const [selectedClasses, setSelectedClasses] = useState([]);
-  //   const [classData, setClassData] = useState([]);
-  //   // Fetch available courses and levels from the database
-  // // Replace this with your actual API call to fetch data
-  // useEffect(() => {
-  //   axios.get('/api/classes').then((res) => {
-  //     setClassData(res.data);
-  //   });
-  // }, []);
+
+  // New state for custom diploma
+  const [customDiploma, setCustomDiploma] = useState('');
+
   const formik = useFormik({
     initialValues: {
       firstName: '',
@@ -43,7 +36,6 @@ export default function EditTeacher() {
       diploma: '',
       hourly_rate: '',
       speciality: '',
-      // class: [],
     },
     validationSchema: Yup.object({
       firstName: Yup.string().required('First name is required'),
@@ -55,7 +47,7 @@ export default function EditTeacher() {
         .matches(/^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, 'Invalid email address'),
       address: Yup.string().required('Address is required'),
       phone: Yup.string().required('Phone number is required'),
-      diploma: Yup.string(),
+      diploma: Yup.string().notRequired().nullable().matches(/^[a-zA-Z\s]*$/, 'Invalid diploma value'),
       hourly_rate: Yup.number().required('Hourly rate is required'),
       speciality: Yup.string(),
     }),
@@ -70,48 +62,44 @@ export default function EditTeacher() {
         email: values.email,
         address: values.address,
         phone: values.phone,
-        diploma: values.diploma === 'Other' ? customDiploma : values.diploma,
+        diploma: values.diploma && values.diploma !== 'Other' ? values.diploma : customDiploma,
         hourly_rate: values.hourly_rate,
         speciality: values.speciality,
       }
-      axios.put('/api/teachers/'+ id, postData).then((res) => {
-    setNotification("Student has been edited successfully");
-    setVariant("warning");
-    setTimeout(() => {
-      setNotification("");
-      setVariant("");
-    }, 3000);
-    navigate(`${x}/teacher`);
+      axios.put('/api/teachers/' + id, postData).then((res) => {
+        setNotification("Teacher has been edited successfully");
+        setVariant("warning");
+        setTimeout(() => {
+          setNotification("");
+          setVariant("");
+        }, 3000);
+        navigate(`${x}/teacher`);
       })
-      .catch((error) => {
-        if (error.response && error.response.status === 422)
-        {
-          formik.setErrors(error.response.data.errors);
-        }
-      }
-      );
+        .catch((error) => {
+          if (error.response && error.response.status === 422) {
+            formik.setErrors(error.response.data.errors);
+          }
+        });
     },
   });
+
   useEffect(() => {
     axios.get(`/api/teachers/${id}`).then((res) => {
-        formik.setValues({
-            firstName: res.data.data.first_name,
-            lastName: res.data.data.last_name,
-            cin: res.data.data.cin,
-            birthday: res.data.data.birthday,
-            email: res.data.data.email,
-            address: res.data.data.address,
-            phone: res.data.data.phone,
-            diploma: res.data.data.diploma,
-            speciality: res.data.data.speciality,
-            hourly_rate: res.data.data.hourly_rate,
-            gender: res.data.data.gender
-        });
+      formik.setValues({
+        firstName: res.data.data.first_name,
+        lastName: res.data.data.last_name,
+        cin: res.data.data.cin,
+        birthday: res.data.data.birthday,
+        email: res.data.data.email,
+        address: res.data.data.address,
+        phone: res.data.data.phone,
+        diploma: res.data.data.diploma,
+        speciality: res.data.data.speciality,
+        hourly_rate: res.data.data.hourly_rate,
+        gender: res.data.data.gender,
+      });
     });
-}, []);
-
-
-
+  }, [id]);
 
   return (
     <Form onSubmit={formik.handleSubmit} className='addTeacher'>
@@ -123,7 +111,7 @@ export default function EditTeacher() {
           <Form.Control
             id='firstName'
             type='text'
-            className={`form-control ${formik.errors.firstName  && formik.touched.firstName  ? 'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.firstName && formik.touched.firstName ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('firstName')}
           />
           {formik.touched.firstName && formik.errors.firstName && (
@@ -136,7 +124,7 @@ export default function EditTeacher() {
           <Form.Control
             id='lastName'
             type='text'
-            className={`form-control ${formik.errors.lastName  && formik.touched.lastName ? 'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.lastName && formik.touched.lastName ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('lastName')}
           />
           {formik.touched.lastName && formik.errors.lastName && (
@@ -149,7 +137,7 @@ export default function EditTeacher() {
           <Form.Control
             id='cin'
             type='text'
-            className={`form-control ${formik.errors.cin  && formik.touched.cin ? 'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.cin && formik.touched.cin ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('cin')}
           />
           {formik.touched.cin && formik.errors.cin && (
@@ -162,7 +150,7 @@ export default function EditTeacher() {
           <Form.Control
             id='birthday'
             type='date'
-            className={`form-control ${formik.errors.birthday  && formik.touched.birthday ? 'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.birthday && formik.touched.birthday ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('birthday')}
           />
           {formik.touched.birthday && formik.errors.birthday && (
@@ -176,7 +164,7 @@ export default function EditTeacher() {
           <Form.Label htmlFor='gender'>Gender*</Form.Label>
           <Form.Select
             id='gender'
-            className={`form-select ${formik.errors.gender   && formik.touched.gender? 'is-invalid' : ''}`}
+            className={`form-select ${formik.errors.gender && formik.touched.gender ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('gender')}
           >
             <option value=''>Select gender</option>
@@ -189,7 +177,7 @@ export default function EditTeacher() {
         </Col>
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='email'>Email</Form.Label> {/* Retiré * */}
+          <Form.Label htmlFor='email'>Email</Form.Label>
           <Form.Control
             id='email'
             type='email'
@@ -206,7 +194,7 @@ export default function EditTeacher() {
           <Form.Control
             id='address'
             type='text'
-            className={`form-control ${formik.errors.address  && formik.touched.address ? 'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.address && formik.touched.address ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('address')}
           />
           {formik.touched.address && formik.errors.address && (
@@ -219,7 +207,7 @@ export default function EditTeacher() {
           <Form.Control
             id='phone'
             type='text'
-            className={`form-control ${formik.errors.phone  && formik.touched.phone ? 'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.phone && formik.touched.phone ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('phone')}
           />
           {formik.touched.phone && formik.errors.phone && (
@@ -229,8 +217,8 @@ export default function EditTeacher() {
       </Row>
 
       <Row>
-      <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='speciality'>Speciality</Form.Label> {/* Retiré * */}
+        <Col md={3} className='mb-3'>
+          <Form.Label htmlFor='speciality'>Speciality</Form.Label>
           <Form.Control
             id='speciality'
             type='text'
@@ -243,31 +231,43 @@ export default function EditTeacher() {
         </Col>
 
         <Col md={3} className='mb-3'>
-                  <Form.Label htmlFor='diploma'>Diploma</Form.Label>
-                  <Form.Select
-                    id='diploma'
-                    className='form-select'
-                    {...formik.getFieldProps('diploma')}
-                    onChange={(e) => {
-                      formik.setFieldValue('diploma', e.target.value);
-                      if (e.target.value !== 'Other') setCustomDiploma("");
-                    }}
-                  >
-                    <option value=''>Select diploma</option>
-                    <option value='Bac'>Bac</option>
-                    <option value='Licence'>Licence</option>
-                    <option value='Master'>Master</option>
-                    <option value='Doctorat'>Doctorat</option>
-                    <option value='Other'>Other</option>
-                  </Form.Select>
-                </Col>
+          <Form.Label htmlFor='diploma'>Diploma*</Form.Label>
+          <Form.Select
+  id="diploma"
+  className="form-select"
+  {...formik.getFieldProps('diploma')}
+  onChange={(e) => {
+    formik.setFieldValue('diploma', e.target.value);
+    if (e.target.value !== 'Other') setCustomDiploma('');
+  }}
+>
+  <option value="">Select diploma (Optional)</option>
+  <option value="Bac">Bac</option>
+  <option value="Licence">Licence</option>
+  <option value="Master">Master</option>
+  <option value="Doctorat">Doctorat</option>
+  <option value="Other">Other</option>
+</Form.Select>
+          {formik.touched.diploma && formik.errors.diploma && (
+            <div className='invalid-feedback'>{formik.errors.diploma}</div>
+          )}
+          {formik.values.diploma === 'Other' && (
+            <Form.Control
+              id='customDiploma'
+              type='text'
+              value={customDiploma}
+              onChange={e => setCustomDiploma(e.target.value)}
+              placeholder='Enter custom diploma'
+            />
+          )}
+        </Col>
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='hireDate'>Hourly rate*</Form.Label>
+          <Form.Label htmlFor='hourly_rate'>Hourly Rate*</Form.Label>
           <Form.Control
-            id='hourlyRate'
+            id='hourly_rate'
             type='number'
-            className={`form-control ${formik.errors.hourly_rate  && formik.touched.hourly_rate ? 'is-invalid' : ''}`}
+            className={`form-control ${formik.errors.hourly_rate && formik.touched.hourly_rate ? 'is-invalid' : ''}`}
             {...formik.getFieldProps('hourly_rate')}
           />
           {formik.touched.hourly_rate && formik.errors.hourly_rate && (
@@ -276,33 +276,13 @@ export default function EditTeacher() {
         </Col>
       </Row>
 
-      <Row>
-        {/* <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='class'>Class(es)*</Form.Label>
-          <Form.Select
-            id='class'
-            className={`form-select ${formik.errors.class  && formik.touched.class ? 'is-invalid' : ''}`}
-            multiple
-            {...formik.getFieldProps('class')}
-          >
-            {classData.map((classItem) => (
-              <option key={classItem.id} value={classItem.id}>
-                {classItem.name}
-              </option>
-            ))}
-          </Form.Select>
-          {formik.touched.class && formik.errors.class && (
-            <div className='invalid-feedback'>{formik.errors.class}</div>
-          )}
-          <div className='form-text text-muted' style={{ fontSize: 'small', color: 'lightgray' }}>
-            (Ctrl + click) or (⌘ + click) to select multiple classes  
-          </div>
-        </Col> */}
-        <AvatarEdit button='Add Teacher profile photo' />
+      <Row className='mb-3'>
+        <Col>
+          <AvatarEdit />
+        </Col>
       </Row>
-      <Button type='submit' className='btn btn-primary'>
-        Edit Teacher
-      </Button>
+
+      <Button type='submit' className='btn btn-primary'>Save</Button>
     </Form>
   );
 }

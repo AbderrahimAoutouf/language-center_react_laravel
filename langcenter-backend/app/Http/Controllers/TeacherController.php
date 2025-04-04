@@ -6,6 +6,7 @@ use App\Models\Teacher;
 use Illuminate\Http\Request;
 use App\Http\Resources\TeacherResource;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class TeacherController extends Controller
 {
@@ -18,40 +19,48 @@ class TeacherController extends Controller
         return TeacherResource::collection($teachers);
     }
 
-
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'first_name' => 'required|string',
-            'last_name' => 'required|string',
-            'address' => 'required|string',
-            'cin' => 'required|string|unique:teachers,cin',
-            'email' => 'nullable|email|unique:teachers,email', // Changed to nullable
-            'phone' => 'required|string|unique:teachers,phone',
-            'diploma' => 'nullable|string', // Changed to nullable
-            'speciality' => 'nullable|string', // Changed to nullable
-            'hourly_rate' => 'required|integer',
-            'birthday' => 'required|date',
-            'gender' => 'required|string'
-        ]);
-        $teacher = new Teacher();
-        $teacher->first_name = $request->first_name;
-        $teacher->last_name = $request->last_name;
-        $teacher->address = $request->address;
-        $teacher->cin = $request->cin;
-        $teacher->email = $request->email ?? null;
-        $teacher->phone = $request->phone;
-        $teacher->diploma = $request->diploma ?? null;
-        $teacher->speciality = $request->speciality ?? null;
-        $teacher->hourly_rate = $request->hourly_rate;
-        $teacher->birthday = $request->birthday;
-        $teacher->hiredate = now();
-        $teacher->gender = $request->gender;
-        $teacher->save();
-        return new TeacherResource($teacher);
+        try {
+            $validated = $request->validate([
+                'first_name' => 'required|string',
+                'last_name' => 'required|string',
+                'address' => 'required|string',
+                'cin' => 'required|string|unique:teachers,cin',
+                'email' => 'nullable|email|unique:teachers,email',
+                'phone' => 'required|string|unique:teachers,phone',
+                'diploma' => 'nullable|string',
+                'speciality' => 'nullable|string',
+                'hourly_rate' => 'required|integer',
+                'birthday' => 'required|date',
+                'gender' => 'required|string'
+            ]);
+
+            $teacher = Teacher::create([
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'address' => $validated['address'],
+                'cin' => $validated['cin'],
+                'email' => $validated['email'] ?? null,
+                'phone' => $validated['phone'],
+                'diploma' => $validated['diploma'] ?? null,
+                'speciality' => $validated['speciality'] ?? null,
+                'hourly_rate' => $validated['hourly_rate'],
+                'birthday' => $validated['birthday'],
+                'hiredate' => now(),
+                'gender' => $validated['gender'],
+            ]);
+
+            return new TeacherResource($teacher);
+        } catch (\Exception $e) {
+            Log::error('Error storing teacher: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur serveur : ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -62,42 +71,46 @@ class TeacherController extends Controller
         return new TeacherResource($teacher);
     }
 
-
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Teacher $teacher)
     {
-        $data = $request->validate([
-            'first_name' => 'required|string',
-            'last_name' => 'required|string',
-            'address' => 'required|string',
-            'cin' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('teachers')->ignore($teacher->id),
-            ],
-            'email' => [
-                'nullable',
-                'email',
-                Rule::unique('teachers')->ignore($teacher->id),
-            ],
-            'phone' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('teachers')->ignore($teacher->id),
-            ],
-            'diploma' => 'nullable|string',
-            'speciality' => 'nullable|string',
-            'hourly_rate' => 'required|integer',
-            'birthday' => 'required|date',
-            'gender' => 'required|string'
-        ]);
-        $teacher->update($data);
+        try {
+            $data = $request->validate([
+                'first_name' => 'required|string',
+                'last_name' => 'required|string',
+                'address' => 'required|string',
+                'cin' => [
+                    'required',
+                    'string',
+                    Rule::unique('teachers')->ignore($teacher->id),
+                ],
+                'email' => [
+                    'nullable',
+                    'email',
+                    Rule::unique('teachers')->ignore($teacher->id),
+                ],
+                'phone' => [
+                    'required',
+                    'string',
+                    Rule::unique('teachers')->ignore($teacher->id),
+                ],
+                'diploma' => 'nullable|string',
+                'speciality' => 'nullable|string',
+                'hourly_rate' => 'required|integer',
+                'birthday' => 'required|date',
+                'gender' => 'required|string'
+            ]);
 
-        return new TeacherResource($teacher);
+            $teacher->update($data);
+            return new TeacherResource($teacher);
+        } catch (\Exception $e) {
+            Log::error('Error updating teacher: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de la mise à jour : ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -105,7 +118,14 @@ class TeacherController extends Controller
      */
     public function destroy(Teacher $teacher)
     {
-        $teacher->delete();
-        return response()->json(null, 204);
+        try {
+            $teacher->delete();
+            return response()->json(null, 204);
+        } catch (\Exception $e) {
+            Log::error('Error deleting teacher: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de la suppression : ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

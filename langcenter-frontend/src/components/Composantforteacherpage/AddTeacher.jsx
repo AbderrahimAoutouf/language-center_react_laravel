@@ -35,15 +35,15 @@ export default function AddTeacher() {
       cin: Yup.string().required('CIN is required'),
       birthday: Yup.date().required('Birthday is required'),
       gender: Yup.string().required('Gender is required'),
-      email: Yup.string()
-        .matches(/^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, 'Invalid email format'),
+      email: Yup.string().email('Invalid email').notRequired(),
       address: Yup.string().required('Address is required'),
       phone: Yup.string().required('Phone number is required'),
-      diploma: Yup.string(),
+      diploma: Yup.string().notRequired().nullable().matches(/^[a-zA-Z\s]*$/, 'Invalid diploma value'),
       hourly_rate: Yup.number().required('Hourly rate is required'),
-      speciality: Yup.string(),
+      speciality: Yup.string().notRequired(),
     }),
     onSubmit: (values) => {
+      console.log("Submitting values:", values);
       const postData = {
         first_name: values.firstName,
         last_name: values.lastName,
@@ -53,7 +53,7 @@ export default function AddTeacher() {
         email: values.email,
         address: values.address,
         phone: values.phone,
-        diploma: values.diploma === 'Other' ? customDiploma : values.diploma,
+        diploma: values.diploma && values.diploma !== 'Other' ? values.diploma : customDiploma,
         hourly_rate: values.hourly_rate,
         speciality: values.speciality,
       };
@@ -67,11 +67,14 @@ export default function AddTeacher() {
         }, 3000);
         navigate(`${x}/teacher`);
       }).catch((error) => {
+        console.error("API error:", error);
         if (error.response && error.response.status === 422) {
           formik.setErrors(error.response.data.errors);
         }
       });
-    },
+    }, catch (err) {
+      console.error("Unexpected error in onSubmit:", err); // Catch other errors
+    }
   });
 
   return (
@@ -189,7 +192,7 @@ export default function AddTeacher() {
       </Row>
 
       <Row>
-        <Col md={3} className='mb-3'>
+       <Col md={3} className='mb-3'>
           <Form.Label htmlFor='speciality'>Speciality</Form.Label> {/* Removed * */}
           <Form.Control
             id='speciality'
@@ -206,21 +209,21 @@ export default function AddTeacher() {
         <Col md={3} className='mb-3'>
           <Form.Label htmlFor='diploma'>Diploma</Form.Label>
           <Form.Select
-            id='diploma'
-            className='form-select'
-            {...formik.getFieldProps('diploma')}
-            onChange={(e) => {
-              formik.setFieldValue('diploma', e.target.value);
-              if (e.target.value !== 'Other') setCustomDiploma("");
-            }}
-          >
-            <option value=''>Select diploma</option>
-            <option value='Bac'>Bac</option>
-            <option value='Licence'>Licence</option>
-            <option value='Master'>Master</option>
-            <option value='Doctorat'>Doctorat</option>
-            <option value='Other'>Other</option>
-          </Form.Select>
+  id="diploma"
+  className="form-select"
+  {...formik.getFieldProps('diploma')}
+  onChange={(e) => {
+    formik.setFieldValue('diploma', e.target.value);
+    if (e.target.value !== 'Other') setCustomDiploma('');
+  }}
+>
+  <option value="">Select diploma (Optional)</option>
+  <option value="Bac">Bac</option>
+  <option value="Licence">Licence</option>
+  <option value="Master">Master</option>
+  <option value="Doctorat">Doctorat</option>
+  <option value="Other">Other</option>
+</Form.Select>
         </Col>
 
         {formik.values.diploma === 'Other' && (

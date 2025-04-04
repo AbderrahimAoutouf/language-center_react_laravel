@@ -9,26 +9,25 @@ class TeacherResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,
             'first_name' => $this->first_name,
-            'cin' => $this->cin,
             'last_name' => $this->last_name,
-            'address' => $this->address,
-            'phone' => $this->phone,
+            'cin' => $this->cin,
             'email' => $this->email,
+            'phone' => $this->phone,
+            'address' => $this->address,
             'diploma' => $this->diploma,
             'speciality' => $this->speciality,
             'hourly_rate' => $this->hourly_rate,
             'birthday' => $this->birthday,
             'hiredate' => $this->hiredate,
             'gender' => $this->gender,
-            'classes' => $this->classes,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }
