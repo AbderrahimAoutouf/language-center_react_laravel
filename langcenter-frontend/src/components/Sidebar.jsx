@@ -1,8 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Nav } from 'react-bootstrap';
-import { Link, NavLink } from 'react-router-dom';
-
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Bars3BottomLeftIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useState } from 'react';
 import centreLogo from '../images/EnglishCastle_HQ.png';
 import cours from '../images/icons/cours.svg';
 import dashboard from '../images/icons/dashboard.svg';
@@ -26,185 +25,211 @@ import { UseStateContext } from '../context/ContextProvider';
 export default function Sidebar() {
   const { logout } = UseStateContext();
   const [openSidebar, setOpenSidebar] = useState(true);
-  const handleOpen = () => {
-    setOpenSidebar((prev) => !prev);
+  const [openDropdowns, setOpenDropdowns] = useState({
+    fees: false
+  });
+  const location = useLocation();
+
+  useEffect(() => {
+    // Close sidebar on mobile view
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setOpenSidebar(false);
+      } else {
+        setOpenSidebar(true);
+      }
+    };
+
+    // Check on mount and add listener
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    // Clean up
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Toggle sidebar
+  const handleToggleSidebar = () => {
+    setOpenSidebar(prev => !prev);
   };
-  const handleLocalStorage = () => {
+
+  // Toggle dropdown
+  const toggleDropdown = (name) => {
+    setOpenDropdowns(prev => ({
+      ...prev,
+      [name]: !prev[name]
+    }));
+  };
+
+  // Handle logout
+  const handleLogout = () => {
     localStorage.removeItem('ACCES_TOKEN');
+    logout();
     window.location.href = '/';
   };
-  return (
-    <div style={{ width: openSidebar ? '20%' : 'auto' }} className=''>
-      <div
-        className={` sidebar-container`}
-        style={{ backgroundColor: '#242B5E' }}
-      >
-        <div
-          className={`logo-container m-0 d-flex flex-row-reverse justify-content-between align-items-center`}
+
+  // Create NavItem component for cleaner code
+  const NavItem = ({ to, icon, label }) => {
+    const isActive = location.pathname === to;
+    
+    return (
+      <Nav.Item>
+        <NavLink 
+          className={({ isActive }) => 
+            `nav-link d-flex align-items-center py-3 ${isActive ? 'active-link' : ''}`
+          } 
+          to={to}
         >
-          <div className={openSidebar ? 'w-25' : 'w-100'}>
-            <button onClick={handleOpen} className='OpenCloseBtn2'>
-              {openSidebar ? (
-                <XMarkIcon
-                  width={25}
-                  className='text-white'
-                  style={{ color: 'white' }}
-                />
-              ) : (
-                <Bars3BottomLeftIcon width={40} className='text-white' />
-              )}
-            </button>
+          <div className="icon-container me-3">
+            <img src={icon} alt={label} />
           </div>
-          <div className='ms-4'>
-            {openSidebar && (
-              <Link className='' to='/dashboard'>
-                <img src={centreLogo} className='logo'></img>
+          <span className={`nav-text ${openSidebar ? 'visible' : 'hidden'}`}>
+            {label}
+          </span>
+        </NavLink>
+      </Nav.Item>
+    );
+  };
+
+  return (
+    <div 
+      className={`sidebar-wrapper ${openSidebar ? 'expanded' : 'collapsed'}`}
+    >
+      <div className="sidebar-container bg-primary h-100 d-flex flex-column">
+        <div className="logo-container d-flex justify-content-between align-items-center px-3 py-2">
+          {openSidebar && (
+            <div className="logo-wrapper">
+              <Link to="/dashboard">
+                <img src={centreLogo} className="logo" alt="English Castle" />
               </Link>
+            </div>
+          )}
+          
+          <button 
+            onClick={handleToggleSidebar} 
+            className="toggle-btn bg-transparent border-0"
+            aria-label={openSidebar ? "Close sidebar" : "Open sidebar"}
+          >
+            {openSidebar ? (
+              <XMarkIcon className="text-white" width={24} />
+            ) : (
+              <Bars3BottomLeftIcon className="text-white" width={24} />
             )}
-          </div>
+          </button>
         </div>
 
-        <div className='Sidebar h-100 fs-6'>
-          <Nav className='flex-column' defaultActiveKey='/dashboard'>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/dashboard'>
-                <img src={dashboard} />
-                {openSidebar && 'Dashboard'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/teacher'>
-                <img src={enseignant} />
-                {openSidebar && 'Teachers'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/student'>
-                <img src={etudiant} />
-                {openSidebar && 'Students'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/parent'>
-                <img src={parents} />
-                {openSidebar && 'Parents'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/class'>
-                <img src={groupes} />
-                {openSidebar && 'Classes'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/course'>
-                <img src={cours} />
-                {openSidebar && 'Courses'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className={'a nav-link link-light'} to='/tests'>
-                <img src={pass} />
-                {openSidebar && 'Tests'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className={'a nav-link link-light'} to='/levels'>
-                <img src={level} />
-                {openSidebar && 'Student Level'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className={'a nav-link link-light'} to='/attendance'>
-                <img src={presence} />
-                {openSidebar && 'Attendance '}
-              </NavLink>
-            </Nav.Item>
-            {/* Presences le span pour cacher ces elements a fin de remplacer le collapse avec dropdown dans les petits ecrans */}
+        <div className="sidebar-nav overflow-auto flex-grow-1">
+          <Nav className="flex-column">
+            {/* Gestion des personnes */}
+            <div className="category-header">
+              <span className={openSidebar ? 'visible' : 'hidden'}>
+                Gestion des personnes
+              </span>
+            </div>
+            
+            <NavItem to="/teacher" icon={enseignant} label="Teachers" />
+            <NavItem to="/student" icon={etudiant} label="Students" />
+            <NavItem to="/parent" icon={parents} label="Parents" />
 
-            {/* Paiements: le span pour cacher ces elements a fin de remplacer le collapse avec dropdown dans les petits ecrans */}
-            {openSidebar ? (
-              <Nav.Item className='nav-item link-light'>
-                <a
-                  className='a nav-link link-light  dropdown-toggle'
-                  href='#dropFees'
-                  id='menu'
-                  data-bs-toggle='collapse'
-                >
-                  <img src={paiements} />
-                  {openSidebar && 'Expenses'}
-                </a>
-                <ul
-                  className='collapse
-                        '
-                  id='dropFees'
-                  data-bs-parent='#menu'
-                >
-                  <Nav.Item>
-                    <NavLink
-                      className='a nav-link link-light'
-                      to='/fees/expenses'
-                    >
-                      Expenses
-                    </NavLink>
-                  </Nav.Item>
-                  <Nav.Item>
-                    <NavLink
-                      className='a nav-link link-light'
-                      to='/fees/teacher'
-                    >
-                      Teachers fees
-                    </NavLink>
-                  </Nav.Item>
-                </ul>
-              </Nav.Item>
-            ) : (
-              <Nav.Item className='nav-item'>
-                <a
-                  onClick={handleOpen}
-                  className='a nav-link link-light dropdown-toggle '
-                  href='#dropFees'
-                  id='menu'
-                  data-bs-toggle='collapse'
-                >
-                  <img src={paiements} />
-                </a>
-              </Nav.Item>
-            )}
+            {/* Pédagogie */}
+            <div className="category-header">
+              <span className={openSidebar ? 'visible' : 'hidden'}>
+                Pédagogie
+              </span>
+            </div>
+            
+            <NavItem to="/class" icon={groupes} label="Classes" />
+            <NavItem to="/course" icon={cours} label="Courses" />
+            <NavItem to="/tests" icon={pass} label="Tests" />
+            <NavItem to="/levels" icon={level} label="Student Level" />
+
+            {/* Suivi administratif */}
+            <div className="category-header">
+              <span className={openSidebar ? 'visible' : 'hidden'}>
+                Suivi administratif
+              </span>
+            </div>
+            
+            <NavItem to="/attendance" icon={presence} label="Attendance" />
+            
+            {/* Dropdown for Expenses */}
             <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/income/student'>
-                <img src={income} />
-                {openSidebar && 'Income'}
-              </NavLink>
+              <div 
+                onClick={() => openSidebar && toggleDropdown('fees')} 
+                className={`nav-link d-flex align-items-center py-3 dropdown-toggle ${
+                  location.pathname.includes('/fees') ? 'active-link' : ''
+                }`}
+                role="button"
+              >
+                <div className="icon-container me-3">
+                  <img src={paiements} alt="Expenses" />
+                </div>
+                {openSidebar && (
+                  <div className="d-flex justify-content-between align-items-center w-100">
+                    <span>Expenses</span>
+                    <i className={`chevron-icon ${openDropdowns.fees ? 'rotate' : ''}`}></i>
+                  </div>
+                )}
+              </div>
+              
+              {openSidebar && (
+                <div className={`dropdown-menu ${openDropdowns.fees ? 'show' : ''}`}>
+                  <NavLink 
+                    className={({ isActive }) => 
+                      `nav-link dropdown-item py-2 ${isActive ? 'active-sublink' : ''}`
+                    } 
+                    to="/fees/expenses"
+                  >
+                    Expenses
+                  </NavLink>
+                  <NavLink 
+                    className={({ isActive }) => 
+                      `nav-link dropdown-item py-2 ${isActive ? 'active-sublink' : ''}`
+                    } 
+                    to="/fees/teacher"
+                  >
+                    Teachers fees
+                  </NavLink>
+                </div>
+              )}
             </Nav.Item>
+            
+            <NavItem to="/income/student" icon={income} label="Income" />
+
+            {/* Organisation */}
+            <div className="category-header">
+              <span className={openSidebar ? 'visible' : 'hidden'}>
+                Organisation
+              </span>
+            </div>
+            
+            <NavItem to="/classroom" icon={salles} label="Classrooms" />
+            <NavItem to="/holidays" icon={holidays} label="Holidays" />
+            <NavItem to="/schedule" icon={empTemps} label="Schedules" />
+
+            {/* Administration */}
+            <div className="category-header">
+              <span className={openSidebar ? 'visible' : 'hidden'}>
+                Administration
+              </span>
+            </div>
+            
+            <NavItem to="/users" icon={users} label="Users" />
+            
             <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/classroom'>
-                <img src={salles} />
-                {openSidebar && 'Classrooms'}
-              </NavLink>
+              <div 
+                onClick={handleLogout} 
+                className="nav-link d-flex align-items-center py-3 logout-link"
+                role="button"
+              >
+                <div className="icon-container me-3">
+                  <img src={disco} alt="Logout" />
+                </div>
+                <span className={`nav-text ${openSidebar ? 'visible' : 'hidden'}`}>
+                  Logout
+                </span>
+              </div>
             </Nav.Item>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/holidays'>
-                <img src={holidays} />
-                {openSidebar && 'Holidays'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/schedule'>
-                <img src={empTemps} />
-                {openSidebar && 'Schedules'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Item>
-              <NavLink className='a nav-link link-light' to='/users'>
-                <img src={users} />
-                {openSidebar && 'Users'}
-              </NavLink>
-            </Nav.Item>
-            <Nav.Link className='a nav-link link-light' onClick={logout}>
-              <img src={disco} />
-              {openSidebar && 'Logout'}
-            </Nav.Link>
           </Nav>
         </div>
       </div>
