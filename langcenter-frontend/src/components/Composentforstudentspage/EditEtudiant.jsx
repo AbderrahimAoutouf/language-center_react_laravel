@@ -9,11 +9,20 @@ import axios from '../../api/axios';
 import {useNavigate} from 'react-router-dom';
 import { UseStateContext } from '../../context/ContextProvider';
 import { useParams } from 'react-router-dom';
+import countriesData from '../../data/countries+states+cities.json';
+
 
 export default function EditEtudiant() {
     const navigate = useNavigate();
     const {id} = useParams();
-  const {user,setNotification,setVariant} = UseStateContext();
+    const {user,setNotification,setVariant} = UseStateContext();
+    const [customDiploma, setCustomDiploma] = useState("");
+    const [countries, setCountries] = useState([]);
+    const [states, setStates] = useState([]);
+    const [cities, setCities] = useState([]);
+    const [selectedCountry, setSelectedCountry] = useState(null);
+    const [selectedState, setSelectedState] = useState(null);
+
   let x = ""
   if (user && user.role==='admin')
   {
@@ -24,6 +33,26 @@ export default function EditEtudiant() {
   }else {
     x="/secretary"
   }
+  useEffect(() => {
+        setCountries(countriesData);
+      }, []);
+    
+      useEffect(() => {
+        if (selectedCountry) {
+          setStates(selectedCountry.states);
+        } else {
+          setStates([]);
+        }
+        setCities([]);
+      }, [selectedCountry]);
+    
+      useEffect(() => {
+        if (selectedState) {
+          setCities(selectedState.cities);
+        } else {
+          setCities([]);
+        }
+      }, [selectedState]);
   const [classData, setClassData] = useState([]);
     // Fetch available courses and levels from the database
   // Replace this with your actual API call to fetch data
@@ -39,7 +68,10 @@ export default function EditEtudiant() {
         lastName: ``,
         class: ``,
         gender: ``,
-        adress: ``,
+        country: '',
+        state: '',
+        city: '',
+        street: '',
         dateofBirth: ``,
         active: false,
         email: ``,
@@ -56,7 +88,10 @@ export default function EditEtudiant() {
     .max(50, 'Too Long!')
     .required('required'),
       gender: yup.string().oneOf(['female','male']).required('required'),
-      adress: yup.string().required('required'),
+      country: yup.string().required('Country is required'),
+      state: yup.string().required('State is required'),
+      city: yup.string().required('City is required'),
+      street: yup.string().required('Street is required'),
       dateofBirth: yup.date().required('required'),
       email: yup.string().email('Invalid email').required("required"),
       phone: yup.string().min(9,'to short to be a valid phone number').required('required'),
@@ -77,7 +112,7 @@ export default function EditEtudiant() {
       sexe: formik.values.gender,
       email: formik.values.email,
       telephone: formik.values.phone,
-      adresse: formik.values.adress,
+      adresse: `${formik.values.street}, ${formik.values.city}, ${formik.values.state}, ${formik.values.country}`,
       underAge: false,
     }
     try{
@@ -96,6 +131,8 @@ export default function EditEtudiant() {
   }
   useEffect(() => {
     axios.get(`/api/etudiants/${id}`).then((res) => {
+      const addressParts = res.data.data.address?.split(',').map(part => part.trim()) || [];
+      const [street, city, state, country] = addressParts;
       formik.setValues(
         {
           firstName: res.data.data.prenom,
@@ -104,7 +141,10 @@ export default function EditEtudiant() {
           gender: res.data.data.sexe,
           email: res.data.data.email,
           phone: res.data.data.telephone,
-          adress: res.data.data.adresse,
+          country: country || '',
+        state: state || '',
+        city: city || '',
+        street: street || '',
         }
       )
     });
@@ -172,20 +212,106 @@ export default function EditEtudiant() {
               </Form.Select>
               <Form.Control.Feedback type="invalid" tooltip>{formik.errors.gender}</Form.Control.Feedback>
               </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12" 
-              className="position-relative">
-            <Form.Label>adress</Form.Label>
-            <Form.Control
+              <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>Country<span className='text-danger'>*</span></Form.Label>
+        <Form.Select
+        id='country'
+          name="country"
+          className={`form-select ${formik.errors.country && formik.touched.country ? 'is-invalid' : ''}`}
+          {...formik.getFieldProps('country')}
+          onChange={(e) => {
+            const country = countries.find(c => c.name === e.target.value);
+            setSelectedCountry(country);
+            formik.setFieldValue('state', '');
+            formik.setFieldValue('city', '');
+            formik.setFieldValue('country', e.target.value);
+          }}
+        >
+          <option value="">Select Country</option>
+          {countries.map((country) => (
+            <option key={country.iso2} value={country.name}>
+              {country.name}
+            </option>
+          ))}
+        </Form.Select>
+        {formik.touched.country && formik.errors.country && (
+                      <div className='invalid-feedback'>{formik.errors.country}</div>
+                    )}
+      </Form.Group>
+
+      {/* Région */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>State<span className='text-danger'>*</span></Form.Label>
+        <Form.Select
+          id='state'
+          name="state"
+          className={`form-select ${formik.errors.state && formik.touched.state ? 'is-invalid' : ''}`}
+          {...formik.getFieldProps('state')}
+          onChange={(e) => {
+            const state = states.find(s => s.name === e.target.value);
+            setSelectedState(state);
+            formik.setFieldValue('city', '');
+            formik.setFieldValue('state', e.target.value);
+          }}
+          disabled={!selectedCountry}
+        >
+          <option value="">Select State</option>
+          {states.map((state) => (
+            <option key={state.id} value={state.name}>
+              {state.name}
+            </option>
+          ))}
+        </Form.Select>
+        {formik.touched.state && formik.errors.state && (
+            <div className='invalid-feedback'>{formik.errors.state}</div>
+          )}
+      </Form.Group>
+
+      {/* Ville */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>City<span className='text-danger'>*</span></Form.Label>
+        {cities.length > 0 ? (
+          <Form.Select
+            name="city"
+            {...formik.getFieldProps('city')}
+            isInvalid={formik.touched.city && !!formik.errors.city}
+            disabled={!selectedState}
+          >
+            <option value="">Select City</option>
+            {cities.map((city) => (
+              <option key={city.id} value={city.name}>
+                {city.name}
+              </option>
+            ))}
+          </Form.Select>
+        ) : (
+          <Form.Control
+            id='city'
             type="text"
-            placeholder="adress"
-            name="adress"
-            {...formik.getFieldProps('adress')}
-            isInvalid={formik.touched.adress && formik.errors.adress}
-            />
-            <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.adress}
-            </Form.Control.Feedback>
-            </Form.Group>
+            className={`form-control ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
+            {...formik.getFieldProps('city')}
+            disabled={!selectedState}
+          />
+        )}
+         {formik.touched.city && formik.errors.city && (
+            <div className='invalid-feedback'>{formik.errors.city}</div>
+          )}
+      </Form.Group>
+
+      {/* Rue */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>Street<span className='text-danger'>*</span></Form.Label>
+        <Form.Control
+          id='street'
+          type="text"
+          placeholder="N° et nom de rue"
+          className={`form-control ${formik.errors.street && formik.touched.street ? 'is-invalid' : ''}`}
+          {...formik.getFieldProps('street')}
+        />
+        {formik.touched.street && formik.errors.street && (
+            <div className='invalid-feedback'>{formik.errors.street}</div>
+          )}
+      </Form.Group>
             <Form.Group as={Col} md="3" sm="6" xs="12"
               className="position-relative">
             <Form.Label>Date of Birth</Form.Label>

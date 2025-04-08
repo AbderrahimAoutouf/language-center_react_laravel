@@ -9,10 +9,18 @@ import * as yup from 'yup';
 import axios from '../api/axios';
 import {useNavigate} from 'react-router-dom';
 import { UseStateContext } from '../context/ContextProvider';
+import countriesData from '../data/countries+states+cities.json';
+
 function FormC() {
   const navigate = useNavigate();
   const [testPrice, setTestPrice] = useState(0);
   const [tests, setTests] = useState([]);
+  const [customDiploma, setCustomDiploma] = useState("");
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedState, setSelectedState] = useState(null);
   const {user,setNotification,setVariant} = UseStateContext();
   const [underAge,setUnderAge] = useState(false);
   const [total,setTotal] = useState(0);
@@ -43,6 +51,26 @@ function FormC() {
       setTestPrice(+res.data.data[0].price)
     });
   }, []);
+  useEffect(() => {
+      setCountries(countriesData);
+    }, []);
+  
+    useEffect(() => {
+      if (selectedCountry) {
+        setStates(selectedCountry.states);
+      } else {
+        setStates([]);
+      }
+      setCities([]);
+    }, [selectedCountry]);
+  
+    useEffect(() => {
+      if (selectedState) {
+        setCities(selectedState.cities);
+      } else {
+        setCities([]);
+      }
+    }, [selectedState]);
   const formik = useFormik({
         initialValues:{
         firstName: ``,
@@ -50,6 +78,10 @@ function FormC() {
         class: ``,
         gender: ``,
         address: ``,
+        country: '',
+      state: '',
+      city: '',
+      street: '',
         dateofBirth: ``,
         active: false,
         adult: ``,
@@ -89,6 +121,10 @@ function FormC() {
     class: yup.string().required("required"),
       gender: yup.string().oneOf(['female','male']).required('required'),
       address: yup.string().required('required'),
+      country: yup.string().required('Country is required'),
+      state: yup.string().required('State is required'),
+      city: yup.string().required('City is required'),
+      street: yup.string().required('Street is required'),
       dateofBirth: yup.date().required('required'),
       adult: yup.boolean().oneOf[true,false],
       email: yup.string().email('Invalid email'),
@@ -116,6 +152,7 @@ function FormC() {
     console.log("wewe are here");
 }
 });
+
   // Find the course fees based on the class id
   const findCoursFees = (classId) => {
     const classFees = classData.find((c) => c.id == classId);
@@ -354,20 +391,106 @@ function FormC() {
             {formik.errors.dateofBirth}
             </Form.Control.Feedback>
             </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12" 
-              className="position-relative">
-            <Form.Label>address<span className='text-danger'>*</span></Form.Label>
-            <Form.Control
+            <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>Country<span className='text-danger'>*</span></Form.Label>
+        <Form.Select
+        id='country'
+          name="country"
+          className={`form-select ${formik.errors.country && formik.touched.country ? 'is-invalid' : ''}`}
+          {...formik.getFieldProps('country')}
+          onChange={(e) => {
+            const country = countries.find(c => c.name === e.target.value);
+            setSelectedCountry(country);
+            formik.setFieldValue('state', '');
+            formik.setFieldValue('city', '');
+            formik.setFieldValue('country', e.target.value);
+          }}
+        >
+          <option value="">Select Country</option>
+          {countries.map((country) => (
+            <option key={country.iso2} value={country.name}>
+              {country.name}
+            </option>
+          ))}
+        </Form.Select>
+        {formik.touched.country && formik.errors.country && (
+                      <div className='invalid-feedback'>{formik.errors.country}</div>
+                    )}
+      </Form.Group>
+
+      {/* Région */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>State<span className='text-danger'>*</span></Form.Label>
+        <Form.Select
+          id='state'
+          name="state"
+          className={`form-select ${formik.errors.state && formik.touched.state ? 'is-invalid' : ''}`}
+          {...formik.getFieldProps('state')}
+          onChange={(e) => {
+            const state = states.find(s => s.name === e.target.value);
+            setSelectedState(state);
+            formik.setFieldValue('city', '');
+            formik.setFieldValue('state', e.target.value);
+          }}
+          disabled={!selectedCountry}
+        >
+          <option value="">Select State</option>
+          {states.map((state) => (
+            <option key={state.id} value={state.name}>
+              {state.name}
+            </option>
+          ))}
+        </Form.Select>
+        {formik.touched.state && formik.errors.state && (
+            <div className='invalid-feedback'>{formik.errors.state}</div>
+          )}
+      </Form.Group>
+
+      {/* Ville */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>City<span className='text-danger'>*</span></Form.Label>
+        {cities.length > 0 ? (
+          <Form.Select
+            name="city"
+            {...formik.getFieldProps('city')}
+            isInvalid={formik.touched.city && !!formik.errors.city}
+            disabled={!selectedState}
+          >
+            <option value="">Select City</option>
+            {cities.map((city) => (
+              <option key={city.id} value={city.name}>
+                {city.name}
+              </option>
+            ))}
+          </Form.Select>
+        ) : (
+          <Form.Control
+            id='city'
             type="text"
-            placeholder="address"
-            name="address"
-            {...formik.getFieldProps('address')}
-            isInvalid={formik.touched.address && formik.errors.address}
-            />
-            <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.address}
-            </Form.Control.Feedback>
-            </Form.Group>
+            className={`form-control ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
+            {...formik.getFieldProps('city')}
+            disabled={!selectedState}
+          />
+        )}
+         {formik.touched.city && formik.errors.city && (
+            <div className='invalid-feedback'>{formik.errors.city}</div>
+          )}
+      </Form.Group>
+
+      {/* Rue */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>Street<span className='text-danger'>*</span></Form.Label>
+        <Form.Control
+          id='street'
+          type="text"
+          placeholder="N° et nom de rue"
+          className={`form-control ${formik.errors.street && formik.touched.street ? 'is-invalid' : ''}`}
+          {...formik.getFieldProps('street')}
+        />
+        {formik.touched.street && formik.errors.street && (
+            <div className='invalid-feedback'>{formik.errors.street}</div>
+          )}
+      </Form.Group>
             <Form.Group as={Col} md="3" sm="6" xs="12" 
               className="position-relative">
             <Form.Label>Email</Form.Label>
@@ -397,27 +520,28 @@ function FormC() {
             </Form.Control.Feedback>
             </Form.Group>
             </Row>
-          {(underAge) ? 
+           
           <Row className='mb-3'>
-            <h3>Parents</h3>
-              <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1032"
-              className='position-relative'
-              >
-              <Form.Label>First name<span className='text-danger'>*</span></Form.Label>
-              <Form.Control
-                type="text"
-                name="guardfName"
-                placeholder="first name"
-                {...formik.getFieldProps('guardfName')}
-                isInvalid={formik.touched.guardfName && formik.errors.guardfName}
-                />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.guardfName}</Form.Control.Feedback>
-              </Form.Group>
+          <h3>Parents</h3>
+          <Form.Group
+            as={Col}
+            md="3"
+            sm="6"
+            xs="12"
+            controlId="validationFormik1032"
+            className='position-relative'
+          >
+            <Form.Label>First name {underAge && <span className='text-danger'>*</span>}</Form.Label>
+            <Form.Control
+              type="text"
+              name="guardfName"
+              placeholder="first name"
+              {...formik.getFieldProps('guardfName')}
+              isInvalid={formik.touched.guardfName && formik.errors.guardfName}
+              disabled={!underAge}
+            />
+            <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.guardfName}</Form.Control.Feedback>
+          </Form.Group>
               <Form.Group
               as={Col}
               md="3"
@@ -433,6 +557,7 @@ function FormC() {
                 placeholder="last name"
                 {...formik.getFieldProps('guardLName')}
                 isInvalid={formik.touched.guardLName && formik.errors.guardLName}
+                disabled={!underAge}
                 />
               <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.guardLName}</Form.Control.Feedback>
             </Form.Group>
@@ -445,6 +570,7 @@ function FormC() {
                 name="guardcin"
                 {...formik.getFieldProps('guardCin')}
                 isInvalid={formik.touched.guardCin && formik.errors.guardCin}
+                disabled={!underAge}
                 />
                 <Form.Control.Feedback type="invalid" tooltip>
                 {formik.errors.guardCin}
@@ -459,6 +585,7 @@ function FormC() {
                   name="guardGender"
                   {...formik.getFieldProps('guardGender')}
                   isInvalid={formik.touched.guardGender && formik.errors.guardGender}
+                  disabled={!underAge}
                   >
                     <option value=''>Choose Gender</option>
                     <option value='male'>Male</option>
@@ -477,6 +604,7 @@ function FormC() {
             name="guardemail"
             {...formik.getFieldProps('guardEmail')}
             isInvalid={formik.touched.guardEmail && formik.errors.guardEmail}
+            disabled={!underAge}
             />
             <Form.Control.Feedback type="invalid" tooltip>
             {formik.errors.guardEmail}
@@ -491,25 +619,116 @@ function FormC() {
             name="guardphone"
             {...formik.getFieldProps('guardPhone')}
             isInvalid={formik.touched.guardPhone && formik.errors.guardPhone}
+            disabled={!underAge}
             />
             <Form.Control.Feedback type="invalid" tooltip>
             {formik.errors.guardPhone}
             </Form.Control.Feedback>
             </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12"
-              className="position-relative">
-            <Form.Label>Address</Form.Label>
-            <Form.Control
+            <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>Country<span className='text-danger'>*</span></Form.Label>
+        <Form.Select
+        id='country'
+          name="country"
+          className={`form-select ${formik.errors.country && formik.touched.country ? 'is-invalid' : ''}`}
+          disabled
+          {...formik.getFieldProps('country')}
+          onChange={(e) => {
+              const country = countries.find(c => c.name === e.target.value);
+            setSelectedCountry(country);
+            formik.setFieldValue('state', '');
+            formik.setFieldValue('city', '');
+            formik.setFieldValue('country', e.target.value);
+          }}
+        >
+          
+          <option value="">Select Country</option>
+          {countries.map((country) => (
+            <option key={country.iso2} value={country.name}>
+              {country.name}
+            </option>
+          ))}
+          
+        </Form.Select>
+        {formik.touched.country && formik.errors.country && (
+                      <div className='invalid-feedback'>{formik.errors.country}</div>
+                    )}
+      </Form.Group>
+
+      {/* Région */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>State<span className='text-danger'>*</span></Form.Label>
+        <Form.Select
+          id='state'
+          name="state"
+          className={`form-select ${formik.errors.state && formik.touched.state ? 'is-invalid' : ''}`}
+          {...formik.getFieldProps('state')}
+          onChange={(e) => {
+            const state = states.find(s => s.name === e.target.value);
+            setSelectedState(state);
+            formik.setFieldValue('city', '');
+            formik.setFieldValue('state', e.target.value);
+          }}
+          disabled
+        >
+          <option value="">Select State</option>
+          {states.map((state) => (
+            <option key={state.id} value={state.name}>
+              {state.name}
+            </option>
+          ))}
+        </Form.Select>
+        {formik.touched.state && formik.errors.state && (
+            <div className='invalid-feedback'>{formik.errors.state}</div>
+          )}
+      </Form.Group>
+
+      {/* Ville */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>City<span className='text-danger'>*</span></Form.Label>
+        {cities.length > 0 ? (
+          <Form.Select
+            name="city"
+            {...formik.getFieldProps('city')}
+            isInvalid={formik.touched.city && !!formik.errors.city}
+            disabled
+          >
+            <option value="">Select City</option>
+            {cities.map((city) => (
+              <option key={city.id} value={city.name}>
+                {city.name}
+              </option>
+            ))}
+          </Form.Select>
+        ) : (
+          <Form.Control
+            id='city'
             type="text"
-            placeholder="address"
-            name="guardaddress"
-            {...formik.getFieldProps('guardAddress')}
-            isInvalid={formik.touched.guardAddress && formik.errors.guardAddress}
-            />
-            <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.guardAddress}
-            </Form.Control.Feedback>       
-                </Form.Group>
+            className={`form-control ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
+            {...formik.getFieldProps('city')}
+            disabled
+          />
+        )}
+         {formik.touched.city && formik.errors.city && (
+            <div className='invalid-feedback'>{formik.errors.city}</div>
+          )}
+      </Form.Group>
+
+      {/* Rue */}
+      <Form.Group as={Col} md="3" className="position-relative">
+        <Form.Label>Street<span className='text-danger'>*</span></Form.Label>
+        <Form.Control
+          id='street'
+          type="text"
+          placeholder="N° et nom de rue"
+          className={`form-control ${formik.errors.street && formik.touched.street ? 'is-invalid' : ''}`}
+          disabled
+          {...formik.getFieldProps('street')}
+        />
+        {formik.touched.street && formik.errors.street && (
+            <div className='invalid-feedback'>{formik.errors.street}</div>
+          )}
+      </Form.Group>
                 <Form.Group as={Col} md="3" sm="6" xs="12"
                 className="position-relative">
                 <Form.Label>Date of Birth</Form.Label>
@@ -519,6 +738,7 @@ function FormC() {
                 name="guarddob"
                 {...formik.getFieldProps('guardBirthDate')}
                 isInvalid={formik.touched.guardBirthDate && formik.errors.guardBirthDate}
+                disabled={!underAge}
                 />
                 <Form.Control.Feedback type="invalid" tooltip>
                 {formik.errors.guardBirthDate}
@@ -529,7 +749,7 @@ function FormC() {
         <>
         </>
         
-        }
+        
         <Row className='mb-3'>
         <Form.Group
               as={Col}

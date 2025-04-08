@@ -6,10 +6,18 @@ import AvatarEdit from '../ProfileCompo/AvatarEdit';
 import axios from "../../api/axios";
 import { UseStateContext } from "../../context/ContextProvider";
 import { useNavigate, useParams } from 'react-router-dom';
+import countriesData from '../../data/countries+states+cities.json';
 
 export default function EditTeacher() {
   const { user, setNotification, setVariant } = UseStateContext();
   const navigate = useNavigate();
+  const [customDiploma, setCustomDiploma] = useState("");
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedState, setSelectedState] = useState(null);
+  
   const { id } = useParams();
   let x = "";
   if (user && user.role === 'admin') {
@@ -21,7 +29,27 @@ export default function EditTeacher() {
   }
 
   // New state for custom diploma
-  const [customDiploma, setCustomDiploma] = useState('');
+
+  useEffect(() => {
+      setCountries(countriesData);
+    }, []);
+  
+    useEffect(() => {
+      if (selectedCountry) {
+        setStates(selectedCountry.states);
+      } else {
+        setStates([]);
+      }
+      setCities([]);
+    }, [selectedCountry]);
+  
+    useEffect(() => {
+      if (selectedState) {
+        setCities(selectedState.cities);
+      } else {
+        setCities([]);
+      }
+    }, [selectedState]);
 
   const formik = useFormik({
     initialValues: {
@@ -31,7 +59,10 @@ export default function EditTeacher() {
       birthday: '',
       gender: '',
       email: '',
-      address: '',
+      country: '',
+      state: '',
+      city: '',
+      street: '',
       phone: '',
       diploma: '',
       hourly_rate: '',
@@ -44,12 +75,15 @@ export default function EditTeacher() {
       birthday: Yup.date().required('Birthday is required'),
       gender: Yup.string().required('Gender is required'),
       email: Yup.string()
-        .matches(/^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, 'Invalid email address'),
-      address: Yup.string().required('Address is required'),
+        .matches(/^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, 'Invalid email address').nullable(),
+      country: Yup.string().required('Country is required'),
+      state: Yup.string().required('State is required'),
+      city: Yup.string().required('City is required'),
+      street: Yup.string().required('Street is required'),
       phone: Yup.string().required('Phone number is required'),
       diploma: Yup.string().notRequired().nullable().matches(/^[a-zA-Z\s]*$/, 'Invalid diploma value'),
       hourly_rate: Yup.number().required('Hourly rate is required'),
-      speciality: Yup.string(),
+      speciality: Yup.string().nullable(),
     }),
     onSubmit: (values) => {
       // Handle form submission and add teacher
@@ -60,7 +94,7 @@ export default function EditTeacher() {
         birthday: values.birthday,
         gender: values.gender,
         email: values.email,
-        address: values.address,
+        address: `${values.street}, ${values.city}, ${values.state}, ${values.country}`,
         phone: values.phone,
         diploma: values.diploma && values.diploma !== 'Other' ? values.diploma : customDiploma,
         hourly_rate: values.hourly_rate,
@@ -82,22 +116,36 @@ export default function EditTeacher() {
         });
     },
   });
+  
 
   useEffect(() => {
     axios.get(`/api/teachers/${id}`).then((res) => {
+      const addressParts = res.data.data.address?.split(',').map(part => part.trim()) || [];
+      const [street, city, state, country] = addressParts;
       formik.setValues({
         firstName: res.data.data.first_name,
         lastName: res.data.data.last_name,
         cin: res.data.data.cin,
         birthday: res.data.data.birthday,
         email: res.data.data.email,
-        address: res.data.data.address,
+        country: country || '',
+        state: state || '',
+        city: city || '',
+        street: street || '',
         phone: res.data.data.phone,
         diploma: res.data.data.diploma,
         speciality: res.data.data.speciality,
         hourly_rate: res.data.data.hourly_rate,
         gender: res.data.data.gender,
       });
+      const countryObj = countriesData.find(c => c.name === country);
+    setSelectedCountry(countryObj);
+
+    if (countryObj) {
+      const stateObj = countryObj.states.find(s => s.name === state);
+      setSelectedState(stateObj);
+    }
+
     });
   }, [id]);
 
@@ -189,18 +237,99 @@ export default function EditTeacher() {
           )}
         </Col>
 
-        <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='address'>Address*</Form.Label>
-          <Form.Control
-            id='address'
-            type='text'
-            className={`form-control ${formik.errors.address && formik.touched.address ? 'is-invalid' : ''}`}
-            {...formik.getFieldProps('address')}
-          />
-          {formik.touched.address && formik.errors.address && (
-            <div className='invalid-feedback'>{formik.errors.address}</div>
-          )}
-        </Col>
+        </Row>
+        
+                <Row>
+                <Col md={3} className='mb-3'>
+                  <Form.Label htmlFor='country'>Country*</Form.Label>
+                  <Form.Select
+                    id='country'
+                    className={`form-select ${formik.errors.country && formik.touched.country ? 'is-invalid' : ''}`}
+                    {...formik.getFieldProps('country')}
+                    onChange={(e) => {
+                      const country = countries.find(c => c.name === e.target.value);
+                      setSelectedCountry(country);
+                      formik.setFieldValue('state', '');
+                      formik.setFieldValue('city', '');
+                      formik.setFieldValue('country', e.target.value);
+                    }}
+                  >
+                    <option value="">Select Country</option>
+                    {countries.map((country) => (
+                      <option key={country.iso2} value={country.name}>{country.name}</option>
+                    ))}
+                  </Form.Select>
+                  {formik.touched.country && formik.errors.country && (
+                    <div className='invalid-feedback'>{formik.errors.country}</div>
+                  )}
+                </Col>
+        
+                <Col md={3} className='mb-3'>
+                  <Form.Label htmlFor='state'>State*</Form.Label>
+                  <Form.Select
+                    id='state'
+                    className={`form-select ${formik.errors.state && formik.touched.state ? 'is-invalid' : ''}`}
+                    {...formik.getFieldProps('state')}
+                    onChange={(e) => {
+                      const state = states.find(s => s.name === e.target.value);
+                      setSelectedState(state);
+                      formik.setFieldValue('city', '');
+                      formik.setFieldValue('state', e.target.value);
+                    }}
+                    disabled={!selectedCountry}
+                  >
+                    <option value="">Select State</option>
+                    {states.map((state) => (
+                      <option key={state.id} value={state.name}>{state.name}</option>
+                    ))}
+                  </Form.Select>
+                  {formik.touched.state && formik.errors.state && (
+                    <div className='invalid-feedback'>{formik.errors.state}</div>
+                  )}
+                </Col>
+        
+                <Col md={3} className='mb-3'>
+                  <Form.Label htmlFor='city'>City*</Form.Label>
+                  {cities.length > 0 ? (
+                    <Form.Select
+                      id='city'
+                      className={`form-select ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
+                      {...formik.getFieldProps('city')}
+                      disabled={!selectedState}
+                    >
+                      <option value="">Select City</option>
+                      {cities.map((city) => (
+                        <option key={city.id} value={city.name}>{city.name}</option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    <Form.Control
+                      id='city'
+                      type='text'
+                      className={`form-control ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
+                      {...formik.getFieldProps('city')}
+                      disabled={!selectedState}
+                    />
+                  )}
+                  {formik.touched.city && formik.errors.city && (
+                    <div className='invalid-feedback'>{formik.errors.city}</div>
+                  )}
+                </Col>
+        
+                <Col md={3} className='mb-3'>
+                  <Form.Label htmlFor='street'>Street*</Form.Label>
+                  <Form.Control
+                    id='street'
+                    type='text'
+                    className={`form-control ${formik.errors.street && formik.touched.street ? 'is-invalid' : ''}`}
+                    {...formik.getFieldProps('street')}
+                  />
+                  {formik.touched.street && formik.errors.street && (
+                    <div className='invalid-feedback'>{formik.errors.street}</div>
+                  )}
+                </Col>
+              </Row>
+              <Row>
 
         <Col md={3} className='mb-3'>
           <Form.Label htmlFor='phone'>Phone*</Form.Label>

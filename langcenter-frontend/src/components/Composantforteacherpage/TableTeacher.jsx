@@ -7,6 +7,10 @@ import { FaEye } from 'react-icons/fa';
 import { UseStateContext } from '../../context/ContextProvider';
 import axios from "../../api/axios";
 import { Ellipsis } from 'react-awesome-spinners';
+import { saveAs } from 'file-saver';
+import { json2csv } from 'json2csv';
+import { MdToggleOn, MdToggleOff } from 'react-icons/md';
+import * as XLSX from 'xlsx';
 
 export default function TableTeacher() {
   const tableCustomStyles = {
@@ -33,6 +37,12 @@ export default function TableTeacher() {
   const [nameFilter, setNameFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [pending, setPending] = useState(true);
+  const handleExcelExport = () => {
+    const ws = XLSX.utils.json_to_sheet(teacherData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Teachers");
+    XLSX.writeFile(wb, 'teachers.xlsx');
+  };
 
   // Fetch data from backend
   useEffect(() => {
@@ -41,6 +51,7 @@ export default function TableTeacher() {
       setTeacherDate(
         res.data.data.map((item) => ({
           id: item.id,
+          active: item.active,
           name: item.first_name + ' ' + item.last_name,
           gender: item.gender,
           class: Array.isArray(item.classes) && item.classes.length > 0
@@ -58,6 +69,29 @@ export default function TableTeacher() {
       setPending(false);
     }, 200);
   }, []);
+  // Nouvelle fonction pour exporter en CSV
+  const handleExport = () => {
+    const csvData = json2csv({
+      fields: ['id', 'name', 'gender', 'class', 'subject', 'phone', 'hourly_rate', 'active'],
+      data: teacherData
+    });
+    
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, 'teachers.csv');
+  };
+
+  // Fonction pour basculer le statut actif
+  const toggleActive = async (id, currentStatus) => {
+    try {
+      await axios.patch(`api/teachers/${id}`, { active: !currentStatus });
+      setTeacherDate(teacherData.map(item => 
+        item.id === id ? { ...item, active: !currentStatus } : item
+      ));
+    } catch (error) {
+      console.error("Error updating status:", error);
+    }
+  };
+
 
   // Delete teacher
   const deleteRow = async (id) => {
@@ -118,6 +152,21 @@ export default function TableTeacher() {
       selector: (row) => row.hourly_rate,
     },
     {
+      name: 'Status',
+      selector: (row) => row.active ? 'Active' : 'Inactive',
+      cell: (row) => (
+        <button 
+          onClick={() => toggleActive(row.id, row.active)}
+          style={{ background: 'none', border: 'none' }}
+        >
+          {row.active ? 
+            <MdToggleOn style={{ color: 'green', fontSize: '24px' }} /> :
+            <MdToggleOff style={{ color: 'red', fontSize: '24px' }} />
+          }
+        </button>
+      )
+    },
+    {
       name: 'Action',
       selector: (row) => row.action,
       cell: (row) => (
@@ -138,11 +187,12 @@ export default function TableTeacher() {
         </div>
       ),
     },
+
   ];
 
   return (
     <div>
-      <div className="d-flex justify-content-around">
+      <div className="d-flex justify-content-around align-items-center gap-3">
         <input
           style={{ backgroundColor: 'rgba(221, 222, 238, 0.5)', border: 'none', borderRadius: '8px' }}
           type="text"
@@ -150,6 +200,7 @@ export default function TableTeacher() {
           value={nameFilter}
           onChange={(e) => setNameFilter(e.target.value)}
         />
+
         <input
           style={{ backgroundColor: 'rgba(221, 222, 238, 0.5)', border: 'none', borderRadius: '8px' }}
           type="text"
@@ -157,6 +208,20 @@ export default function TableTeacher() {
           value={classFilter}
           onChange={(e) => setClassFilter(e.target.value)}
         />
+         <button 
+          className="btn btn-success d-flex align-items-center gap-2"
+          onClick={handleExport}
+        >
+          <BsDownload />
+          Export CSV
+        </button>
+        <button 
+  className="btn btn-success d-flex align-items-center gap-2"
+  onClick={handleExcelExport}
+>
+  <BsDownload />
+  Export Excel
+</button>
         <Link to={`${x}/teacher/add`}>
           <button className="btn btn-danger">Add Teacher</button>
         </Link>

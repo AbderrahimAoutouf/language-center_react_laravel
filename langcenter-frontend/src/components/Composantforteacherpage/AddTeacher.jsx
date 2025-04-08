@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFormik } from 'formik';
 import { Form, Button, Row, Col } from 'react-bootstrap';
 import * as Yup from 'yup';
@@ -6,14 +6,41 @@ import AvatarEdit from '../ProfileCompo/AvatarEdit';
 import axios from "../../api/axios";
 import { UseStateContext } from "../../context/ContextProvider";
 import { useNavigate } from 'react-router-dom';
+import countriesData from '../../data/countries+states+cities.json';
 
 export default function AddTeacher() {
   const { user, setNotification, setVariant } = UseStateContext();
   const navigate = useNavigate();
+  const [customDiploma, setCustomDiploma] = useState("");
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedState, setSelectedState] = useState(null);
+
 
   let x = user?.role === 'admin' ? "" : user?.role === 'director' ? "/director" : "/secretary";
+  useEffect(() => {
+    setCountries(countriesData);
+  }, []);
 
-  const [customDiploma, setCustomDiploma] = useState("");
+  useEffect(() => {
+    if (selectedCountry) {
+      setStates(selectedCountry.states);
+    } else {
+      setStates([]);
+    }
+    setCities([]);
+  }, [selectedCountry]);
+
+  useEffect(() => {
+    if (selectedState) {
+      setCities(selectedState.cities);
+    } else {
+      setCities([]);
+    }
+  }, [selectedState]);
+
 
   const formik = useFormik({
     initialValues: {
@@ -23,7 +50,10 @@ export default function AddTeacher() {
       birthday: '',
       gender: '',
       email: '',
-      address: '',
+      country: '',
+      state: '',
+      city: '',
+      street: '',
       phone: '',
       diploma: '',
       hourly_rate: '',
@@ -36,14 +66,16 @@ export default function AddTeacher() {
       birthday: Yup.date().required('Birthday is required'),
       gender: Yup.string().required('Gender is required'),
       email: Yup.string().email('Invalid email').notRequired(),
-      address: Yup.string().required('Address is required'),
+      country: Yup.string().required('Country is required'),
+      state: Yup.string().required('State is required'),
+      city: Yup.string().required('City is required'),
+      street: Yup.string().required('Street is required'),
       phone: Yup.string().required('Phone number is required'),
       diploma: Yup.string().notRequired().nullable().matches(/^[a-zA-Z\s]*$/, 'Invalid diploma value'),
       hourly_rate: Yup.number().required('Hourly rate is required'),
       speciality: Yup.string().notRequired(),
     }),
     onSubmit: (values) => {
-      console.log("Submitting values:", values);
       const postData = {
         first_name: values.firstName,
         last_name: values.lastName,
@@ -51,7 +83,7 @@ export default function AddTeacher() {
         birthday: values.birthday,
         gender: values.gender,
         email: values.email,
-        address: values.address,
+        address: `${values.street}, ${values.city}, ${values.state}, ${values.country}`,
         phone: values.phone,
         diploma: values.diploma && values.diploma !== 'Other' ? values.diploma : customDiploma,
         hourly_rate: values.hourly_rate,
@@ -163,20 +195,99 @@ export default function AddTeacher() {
             <div className='invalid-feedback'>{formik.errors.email}</div>
           )}
         </Col>
+        </Row>
 
+        <Row>
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='address'>Address*</Form.Label>
-          <Form.Control
-            id='address'
-            type='text'
-            className={`form-control ${formik.errors.address  && formik.touched.address ? 'is-invalid' : ''}`}
-            {...formik.getFieldProps('address')}
-          />
-          {formik.touched.address && formik.errors.address && (
-            <div className='invalid-feedback'>{formik.errors.address}</div>
+          <Form.Label htmlFor='country'>Country*</Form.Label>
+          <Form.Select
+            id='country'
+            className={`form-select ${formik.errors.country && formik.touched.country ? 'is-invalid' : ''}`}
+            {...formik.getFieldProps('country')}
+            onChange={(e) => {
+              const country = countries.find(c => c.name === e.target.value);
+              setSelectedCountry(country);
+              formik.setFieldValue('state', '');
+              formik.setFieldValue('city', '');
+              formik.setFieldValue('country', e.target.value);
+            }}
+          >
+            <option value="">Select Country</option>
+            {countries.map((country) => (
+              <option key={country.iso2} value={country.name}>{country.name}</option>
+            ))}
+          </Form.Select>
+          {formik.touched.country && formik.errors.country && (
+            <div className='invalid-feedback'>{formik.errors.country}</div>
           )}
         </Col>
 
+        <Col md={3} className='mb-3'>
+          <Form.Label htmlFor='state'>State*</Form.Label>
+          <Form.Select
+            id='state'
+            className={`form-select ${formik.errors.state && formik.touched.state ? 'is-invalid' : ''}`}
+            {...formik.getFieldProps('state')}
+            onChange={(e) => {
+              const state = states.find(s => s.name === e.target.value);
+              setSelectedState(state);
+              formik.setFieldValue('city', '');
+              formik.setFieldValue('state', e.target.value);
+            }}
+            disabled={!selectedCountry}
+          >
+            <option value="">Select State</option>
+            {states.map((state) => (
+              <option key={state.id} value={state.name}>{state.name}</option>
+            ))}
+          </Form.Select>
+          {formik.touched.state && formik.errors.state && (
+            <div className='invalid-feedback'>{formik.errors.state}</div>
+          )}
+        </Col>
+
+        <Col md={3} className='mb-3'>
+          <Form.Label htmlFor='city'>City*</Form.Label>
+          {cities.length > 0 ? (
+            <Form.Select
+              id='city'
+              className={`form-select ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
+              {...formik.getFieldProps('city')}
+              disabled={!selectedState}
+            >
+              <option value="">Select City</option>
+              {cities.map((city) => (
+                <option key={city.id} value={city.name}>{city.name}</option>
+              ))}
+            </Form.Select>
+          ) : (
+            <Form.Control
+              id='city'
+              type='text'
+              className={`form-control ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
+              {...formik.getFieldProps('city')}
+              disabled={!selectedState}
+            />
+          )}
+          {formik.touched.city && formik.errors.city && (
+            <div className='invalid-feedback'>{formik.errors.city}</div>
+          )}
+        </Col>
+
+        <Col md={3} className='mb-3'>
+          <Form.Label htmlFor='street'>Street*</Form.Label>
+          <Form.Control
+            id='street'
+            type='text'
+            className={`form-control ${formik.errors.street && formik.touched.street ? 'is-invalid' : ''}`}
+            {...formik.getFieldProps('street')}
+          />
+          {formik.touched.street && formik.errors.street && (
+            <div className='invalid-feedback'>{formik.errors.street}</div>
+          )}
+        </Col>
+      </Row>
+      <Row>
         <Col md={3} className='mb-3'>
           <Form.Label htmlFor='phone'>Phone*</Form.Label>
           <Form.Control

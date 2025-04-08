@@ -1,159 +1,204 @@
 import { useParams } from 'react-router-dom';
-import { useState,useEffect } from 'react';
-import axios from '../../api/axios'
-import imgTeacher from "../../images/teacher.png"
-import { Image } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import axios from '../../api/axios';
+import imgTeacher from "../../images/teacher.png";
+import { Image, Button } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
+import { UseStateContext } from "../../context/ContextProvider";
 
-export default function EnseignantDetails()
-{
-    const [teacherData, setTeacherDate] = useState([]);
-    const {id} = useParams();
-    useEffect(() => {
-        axios.get(`/api/teachers/${id}`)
-        .then((res) => {
-            console.log(res.data.data);
-        setTeacherDate(
-          {
-            id: res.data.data.id,
-            nom: res.data.data.last_name,
-            prenom: res.data.data.first_name,
-            name: res.data.data.first_name + ' ' + res.data.data.last_name,
-            gender: res.data.data.gender,
-            class: res.data.data.classes.length > 0 ? res.data.data.classes.map((cls) => cls.name).join(', ') : 'No class',
-            subject: res.data.data.speciality,
-            status: "active",
-            phone: res.data.data.phone,
-            birthday: res.data.data.birthday,
-            email: res.data.data.email,
-            address: res.data.data.address,
-            date_admission: res.data.data.hiredate,
-            degree: res.data.data.diploma,
-          }
-        )
-            // setTeacherDate(res.data.data)
-            console.log(teacherData);
-        })
-        .catch((err) => {
-            console.log(err);
-        })
-    }, [])
-
+export default function EnseignantDetails() {
+    const [teacherData, setTeacherData] = useState({});
+    const [loading, setLoading] = useState(true);
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const { user } = UseStateContext();
     
-    const Prof = {
-        id: teacherData.id,
-        nom: teacherData.nom,
-        prenom: teacherData.prenom,
-        gender:teacherData.gender,
-        Digree:teacherData.degree,
-        email: teacherData.email,
-        telephone: teacherData.phone,
-        DateNaissance:teacherData.birthday,
-        DateAdmission:teacherData.date_admission,
-        class:teacherData.class,
-      };
-   return(
-    <div>
-        <br /><br /><br />
+    // Determine the route prefix based on user role
+    let routePrefix = "";
+    if (user && user.role === 'admin') {
+        routePrefix = "";
+    } else if (user && user.role === 'director') {
+        routePrefix = "/director";
+    } else {
+        routePrefix = "/secretary";
+    }
 
-        <div className="Container">
-            <div className="row">
+    useEffect(() => {
+        setLoading(true);
+        axios.get(`/api/teachers/${id}`)
+            .then((res) => {
+                const data = res.data.data;
+                setTeacherData({
+                    id: data.id,
+                    nom: data.last_name,
+                    prenom: data.first_name,
+                    name: data.first_name + ' ' + data.last_name,
+                    gender: data.gender,
+                    class: data.classes && data.classes.length > 0 ? data.classes.map((cls) => cls.name).join(', ') : 'No class',
+                    subject: data.speciality,
+                    status: "active",
+                    phone: data.phone,
+                    birthday: data.birthday,
+                    email: data.email,
+                    address: data.address,
+                    date_admission: data.hiredate,
+                    degree: data.diploma,
+                    cin: data.cin,
+                    hourly_rate: data.hourly_rate
+                });
+                setLoading(false);
+            })
+            .catch((err) => {
+                console.log(err);
+                setLoading(false);
+            });
+    }, [id]);
+
+    const handleEditClick = () => {
+        navigate(`${routePrefix}/teacher/edit/${id}`);
+    };
+
+    if (loading) {
+        return <div className="text-center mt-5">Loading teacher data...</div>;
+    }
+
+    return (
+        <div>
+            <br /><br /><br />
+
+            <div className="Container">
+                <div className="row">
                     <div className="col-5">
-                    <Image width={"50%"} className="ms-5"  src={imgTeacher} roundedCircle>
-                        </Image>
-                </div>
-                <div className="col">
-                    <h5>{Prof.nom} {Prof.prenom}</h5>
+                        <Image width={"50%"} className="ms-5" src={imgTeacher} roundedCircle />
+                    </div>
+                    <div className="col">
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h5>{teacherData.nom} {teacherData.prenom}</h5>
+                            <Button variant="primary" onClick={handleEditClick}>Edit Teacher</Button>
+                        </div>
                         <p>
-                           Descreption
+                            {teacherData.subject ? `Specializing in ${teacherData.subject}` : 'Description'}
                         </p> 
-                        <br /><br />
+                        <br />
                         <div className="row">
                             <div className="col-6">
-                                 ID Number:
+                                ID Number:
                             </div>
                             <div className="col-6">
-                            {Prof.id}
+                                {teacherData.id}
                             </div>
                         </div>
                         <br />
                         <div className="row">
                             <div className="col-6">
-                                 Last Name:
+                                CIN:
                             </div>
                             <div className="col-6">
-                            {Prof.nom}
+                                {teacherData.cin}
                             </div>
                         </div>
                         <br />
                         <div className="row">
                             <div className="col-6">
-                                 First Name:
+                                Last Name:
                             </div>
                             <div className="col-6">
-                            {Prof.prenom}
+                                {teacherData.nom}
                             </div>
                         </div>
                         <br />
                         <div className="row">
                             <div className="col-6">
-                                 Gender:
+                                First Name:
                             </div>
                             <div className="col-6">
-                            {Prof.gender}
+                                {teacherData.prenom}
                             </div>
                         </div>
                         <br />
                         <div className="row">
                             <div className="col-6">
-                                 Email:
+                                Gender:
                             </div>
                             <div className="col-6">
-                            {Prof.email}
+                                {teacherData.gender && teacherData.gender.charAt(0).toUpperCase() + teacherData.gender.slice(1)}
                             </div>
                         </div>
                         <br />
                         <div className="row">
                             <div className="col-6">
-                                 Date of birth:
+                                Email:
                             </div>
                             <div className="col-6">
-                            {Prof.DateNaissance}
+                                {teacherData.email}
                             </div>
                         </div>
                         <br />
                         <div className="row">
                             <div className="col-6">
-                                 Degree:
+                                Phone:
                             </div>
                             <div className="col-6">
-                            {Prof.Digree}
+                                {teacherData.phone}
                             </div>
                         </div>
                         <br />
                         <div className="row">
                             <div className="col-6">
-                                 Date of Admission:
+                                Address:
                             </div>
                             <div className="col-6">
-                            {Prof.DateAdmission}
+                                {teacherData.address}
                             </div>
                         </div>
                         <br />
                         <div className="row">
                             <div className="col-6">
-                                 Class
+                                Date of birth:
                             </div>
                             <div className="col-6">
-                            {Prof.class}
+                                {teacherData.birthday}
                             </div>
                         </div>
-                    
+                        <br />
+                        <div className="row">
+                            <div className="col-6">
+                                Degree:
+                            </div>
+                            <div className="col-6">
+                                {teacherData.degree}
+                            </div>
+                        </div>
+                        <br />
+                        <div className="row">
+                            <div className="col-6">
+                                Hourly Rate:
+                            </div>
+                            <div className="col-6">
+                                {teacherData.hourly_rate}
+                            </div>
+                        </div>
+                        <br />
+                        <div className="row">
+                            <div className="col-6">
+                                Date of Admission:
+                            </div>
+                            <div className="col-6">
+                                {teacherData.date_admission}
+                            </div>
+                        </div>
+                        <br />
+                        <div className="row">
+                            <div className="col-6">
+                                Class:
+                            </div>
+                            <div className="col-6">
+                                {teacherData.class}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
         </div>
-    </div>
-   )
-  
-   
+    );
 }
