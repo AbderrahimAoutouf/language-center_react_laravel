@@ -112,6 +112,22 @@ class TeacherController extends Controller
             ], 500);
         }
     }
+    public function toggleActive(Teacher $teacher)
+{
+    try {
+        // Inverser l'état de l'enseignant (actif/inactif)
+        $teacher->active = !$teacher->active;
+        $teacher->save();
+
+        return new TeacherResource($teacher);
+    } catch (\Exception $e) {
+        Log::error('Error toggling active status: ' . $e->getMessage());
+        return response()->json([
+            'message' => 'Erreur lors de la mise à jour de l\'état actif : ' . $e->getMessage()
+        ], 500);
+    }
+}
+
 
     /**
      * Remove the specified resource from storage.

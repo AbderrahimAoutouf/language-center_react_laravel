@@ -65,6 +65,7 @@ Route::post('/teachers', 'App\Http\Controllers\TeacherController@store');
 Route::get('/teachers/{teacher}', 'App\Http\Controllers\TeacherController@show');
 Route::put('/teachers/{teacher}', 'App\Http\Controllers\TeacherController@update');
 Route::delete('/teachers/{teacher}', 'App\Http\Controllers\TeacherController@destroy');
+Route::patch('/teachers/{teacher}/toggle-active', [TeacherController::class, 'toggleActive']);
 //parent api
 Route::get('/parents', 'App\Http\Controllers\ParentController@index');
 Route::put('parents/{parent_}', 'App\Http\Controllers\ParentController@update');
