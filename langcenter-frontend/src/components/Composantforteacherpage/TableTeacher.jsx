@@ -150,15 +150,26 @@ export default function TableTeacher() {
         prev.map(t => t.id === id ? { ...t, active: updatedStatus } : t)
       );
   
+      // Show notification with status
       setNotification(`Teacher status ${updatedStatus ? 'activated' : 'deactivated'}`);
       setVariant(updatedStatus ? "success" : "warning");
+      
+      // Auto-clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      
     } catch (err) {
       console.error(err);
       setNotification("Failed to update status");
       setVariant("danger");
+      
+      // Also clear error notifications
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     }
   };
-
   const deleteTeacher = async (id) => {
     try {
       await axios.delete(`api/teachers/${id}`);
@@ -250,87 +261,44 @@ export default function TableTeacher() {
   ];
 
   return (
-    <div className="container-fluid px-4 py-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2 className="fw-bold text-dark mb-1">Teacher Management</h2>
-          <p className="text-muted">Manage and view all teacher information</p>
-        </div>
+    <div>
+      <div className="d-flex justify-content-around align-items-center gap-3">
+        <input
+          className="form-control"
+          style={{ borderRadius: '8px' }}
+          placeholder="Search by Name"
+          value={nameFilter}
+          onChange={e => setNameFilter(e.target.value)}
+        />
+        <input
+          className="form-control"
+          style={{ borderRadius: '8px' }}
+          placeholder="Search by Class"
+          value={classFilter}
+          onChange={e => setClassFilter(e.target.value)}
+        />
+        <button className="btn btn-success d-flex align-items-center gap-2" onClick={handleExportCSV}>
+          <BsDownload /> Export CSV
+        </button>
+        <button className="btn btn-success d-flex align-items-center gap-2" onClick={handleExportExcel}>
+          <BsDownload /> Export Excel
+        </button>
+        <Link to={`${getRolePath()}/teacher/add`}>
+          <button className="btn btn-danger">Add Teacher</button>
+        </Link>
       </div>
-      <div className="card border-0 shadow-sm">
-        <div className="card-body p-4">
-          <div className="row g-3 mb-4">
-            <div className="col-md-4">
-              <div className="input-group">
-                <span className="input-group-text bg-light border-end-0">
-                  <BsSearch />
-                </span>
-                <input
-                  className="form-control border-start-0 ps-0"
-                  placeholder="Search by Name"
-                  value={nameFilter}
-                  onChange={e => setNameFilter(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="col-md-4">
-              <div className="input-group">
-                <span className="input-group-text bg-light border-end-0">
-                  <BsSearch />
-                </span>
-                <input
-                  className="form-control border-start-0 ps-0"
-                  placeholder="Search by Class"
-                  value={classFilter}
-                  onChange={e => setClassFilter(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="col-md-4 d-flex gap-2 justify-content-end">
-              <button 
-                className="btn btn-outline-success d-flex align-items-center gap-2" 
-                onClick={handleExportCSV}
-              >
-                <BsDownload /> CSV
-              </button>
-              <button 
-                className="btn btn-outline-success d-flex align-items-center gap-2" 
-                onClick={handleExportExcel}
-              >
-                <BsDownload /> Excel
-              </button>
-              <Link to={`${getRolePath()}/teacher/add`}>
-                <button className="btn btn-primary d-flex align-items-center gap-2">
-                  <BsPersonPlus /> Add Teacher
-                </button>
-              </Link>
-            </div>
-          </div>
 
           <DataTable
-            columns={columns}
-            data={filteredData}
-            pagination
-            paginationRowsPerPageOptions={[5, 10, 15, 20, 25, 30]}
-            fixedHeader
-            highlightOnHover
-            striped
-            responsive
-            progressPending={pending}
-            noDataComponent={
-              <div className="p-4 text-center">
-                <p className="mb-0 text-muted">No teachers found</p>
-              </div>
-            }
-            customStyles={tableCustomStyles}
-            progressComponent={
-              <div className="py-5">
-                <Ellipsis size={50} color='#0d6efd' />
-              </div>
-            }
-          />
+        columns={columns}
+        data={filteredData}
+        fixedHeader
+        pagination
+        progressPending={pending}
+        className="mt-4"
+        customStyles={tableCustomStyles}
+        progressComponent={<Ellipsis size={64} color='#D60A0B' />}
+      />
     </div>
-    </div>
-    </div>
+   
   );
 }
