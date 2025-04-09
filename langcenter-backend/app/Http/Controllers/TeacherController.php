@@ -33,7 +33,7 @@ class TeacherController extends Controller
                 'email' => 'nullable|email|unique:teachers,email',
                 'phone' => 'required|string|unique:teachers,phone',
                 'diploma' => 'nullable|string',
-                'speciality' => 'nullable|string',
+                'F' => 'nullable|string',
                 'hourly_rate' => 'required|integer',
                 'birthday' => 'required|date',
                 'gender' => 'required|string'

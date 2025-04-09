@@ -272,18 +272,18 @@ export default function EnseignantDetails() {
                                 >
                                     <div className="position-relative d-inline-block">
                                         <div className="rounded-circle overflow-hidden border border-4 border-primary p-1 mb-3 mx-auto">
-                                        // In the JSX where the avatar is rendered, modify the Image component:
-<Image 
-  width="200px"
-  height="200px"
-  src={teacherData.avatar || imgTeacher} 
-  className="img-fluid"
-  style={{ objectFit: "cover" }}
-  onError={(e) => {
-    // Fallback to default image if the avatar URL fails to load
-    e.target.src = imgTeacher;
-  }}
-/>                                       </div>
+                                            <Image 
+                                                width="200px"
+                                                height="200px"
+                                                src={teacherData.avatar || imgTeacher} 
+                                                className="img-fluid"
+                                                style={{ objectFit: "cover" }}
+                                                onError={(e) => {
+                                                    // Fallback to default image if the avatar URL fails to load
+                                                    e.target.src = imgTeacher;
+                                                }}
+                                            />
+                                        </div>
                                     </div>
 
                                     <h4 className="mb-1">{teacherData.prenom} {teacherData.nom}</h4>

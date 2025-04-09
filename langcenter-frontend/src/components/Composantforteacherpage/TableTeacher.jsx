@@ -170,6 +170,7 @@ export default function TableTeacher() {
       }, 3000);
     }
   };
+
   const deleteTeacher = async (id) => {
     try {
       await axios.delete(`api/teachers/${id}`);
@@ -178,9 +179,16 @@ export default function TableTeacher() {
       setVariant("success");
     } catch (err) {
       console.error(err);
-      setNotification("Delete failed");
+      if (err.response?.status === 400 && err.response?.data?.message?.includes("foreign key constraint")) {
+        setNotification("Cannot delete teacher: Teacher is assigned to one or more classes.");
+      } else {
+        setNotification("Delete failed");
+      }
       setVariant("danger");
     }
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
   };
 
   const filteredData = teacherData.filter(t =>

@@ -1,69 +1,86 @@
-import React, { useState, useEffect } from 'react';
-import Avatar from 'react-avatar-edit';
+import React, { useState, useCallback } from 'react';
+import Cropper from 'react-easy-crop';
 import photoProfile from '../../images/user.png';
 
 function AvatarEdit({ setImageData }) {
-  const [imgCrop, setImgCrop] = useState(null);
-  const [storeImage, setStoreImage] = useState([]);
+  const [imageSrc, setImageSrc] = useState(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedImage, setCroppedImage] = useState(null);
 
-  // This useEffect applies a monkey patch to the Canvas prototype
-  // to always set willReadFrequently to true when getContext is called
-  useEffect(() => {
-    // Store the original getContext method
-    const originalGetContext = HTMLCanvasElement.prototype.getContext;
-    
-    // Override the getContext method
-    HTMLCanvasElement.prototype.getContext = function(contextType, contextAttributes = {}) {
-      // Automatically add willReadFrequently for 2d contexts
-      if (contextType === '2d') {
-        contextAttributes.willReadFrequently = true;
-      }
-      
-      // Call the original method with our modified attributes
-      return originalGetContext.call(this, contextType, contextAttributes);
-    };
-    
-    // Cleanup function to restore the original method when component unmounts
-    return () => {
-      HTMLCanvasElement.prototype.getContext = originalGetContext;
-    };
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
-  const onClose = () => {
-    setImgCrop(null);
-  };
-
-  const onCrop = (preview) => {
-    setImgCrop(preview);
-  };
-
-  const saveImage = () => {
-    if (!imgCrop) return;
-    
-    const newImage = { imgCrop };
-    setStoreImage([...storeImage, newImage]);
-    
-    if (typeof setImageData === 'function') {
-      setImageData(imgCrop);
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageSrc(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const profileImageShow = storeImage.map((item) => item.imgCrop);
+  const getCroppedImage = useCallback(async () => {
+    if (!imageSrc || !croppedAreaPixels) return;
+
+    const canvas = document.createElement('canvas');
+    const image = new Image();
+    image.src = imageSrc;
+
+    await new Promise((resolve) => {
+      image.onload = resolve;
+    });
+
+    const ctx = canvas.getContext('2d');
+    const { width, height } = croppedAreaPixels;
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.drawImage(
+      image,
+      croppedAreaPixels.x,
+      croppedAreaPixels.y,
+      width,
+      height,
+      0,
+      0,
+      width,
+      height
+    );
+
+    const croppedImageUrl = canvas.toDataURL('image/jpeg');
+    setCroppedImage(croppedImageUrl);
+
+    if (typeof setImageData === 'function') {
+      setImageData(croppedImageUrl);
+    }
+  }, [imageSrc, croppedAreaPixels, setImageData]);
 
   return (
-    <div className='EditAvatar'>
-      <div className='d-flex flex-column align-items-center'>
+    <div className="EditAvatar">
+      <div className="d-flex flex-column align-items-center">
         <img
-          src={profileImageShow.length ? profileImageShow[0] : photoProfile}
+          src={croppedImage || photoProfile}
           alt="Profile Preview"
-          style={{ width: '150px', height: '150px', borderRadius: '50%' }}
-          className='mb-3'
+          style={{
+            width: '150px',
+            height: '150px',
+            borderRadius: '50%',
+            objectFit: 'cover', // Ensure the image fits properly
+          }}
+          className="mb-3"
         />
+        <input type="file" accept="image/*" onChange={handleFileChange} />
         <button
           type="button"
           className="btn btn-danger"
           data-bs-toggle="modal"
-          data-bs-target="#exampleModal"
+          data-bs-target="#cropModal"
+          disabled={!imageSrc}
         >
           Changer Photo de profile
         </button>
@@ -71,15 +88,14 @@ function AvatarEdit({ setImageData }) {
 
       <div
         className="modal fade"
-        id="exampleModal"
+        id="cropModal"
         tabIndex="-1"
-        aria-labelledby="exampleModalLabel"
-        aria-hidden="true"
+        aria-labelledby="cropModalLabel"
       >
-        <div className="modal-dialog">
+        <div className="modal-dialog modal-lg">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title" id="exampleModalLabel">Photo de profile</h5>
+              <h5 className="modal-title" id="cropModalLabel">Crop Your Image</h5>
               <button
                 type="button"
                 className="btn-close"
@@ -88,14 +104,19 @@ function AvatarEdit({ setImageData }) {
               ></button>
             </div>
             <div className="modal-body">
-              <Avatar
-                width={400}
-                height={300}
-                onCrop={onCrop}
-                onClose={onClose}
-                // Only using width as per error message
-                imageWidth={400}
-              />
+              {imageSrc && (
+                <div style={{ position: 'relative', width: '100%', height: 400 }}>
+                  <Cropper
+                    image={imageSrc}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={1}
+                    onCropChange={setCrop}
+                    onZoomChange={setZoom}
+                    onCropComplete={onCropComplete}
+                  />
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button
@@ -108,9 +129,9 @@ function AvatarEdit({ setImageData }) {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={saveImage}
+                onClick={getCroppedImage}
                 data-bs-dismiss="modal"
-                disabled={!imgCrop}
+                disabled={!imageSrc}
               >
                 Save changes
               </button>
