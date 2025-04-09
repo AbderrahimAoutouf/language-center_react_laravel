@@ -122,30 +122,33 @@ export default function EditTeacher() {
     axios.get(`/api/teachers/${id}`).then((res) => {
       const addressParts = res.data.data.address?.split(',').map(part => part.trim()) || [];
       const [street, city, state, country] = addressParts;
+  
+      // Convert all null/undefined fields to empty strings
       formik.setValues({
-        firstName: res.data.data.first_name,
-        lastName: res.data.data.last_name,
-        cin: res.data.data.cin,
-        birthday: res.data.data.birthday,
-        email: res.data.data.email,
+        firstName: res.data.data.first_name || '',
+        lastName: res.data.data.last_name || '',
+        cin: res.data.data.cin || '',
+        birthday: res.data.data.birthday || '',
+        gender: res.data.data.gender || '',
+        email: res.data.data.email || '',
         country: country || '',
         state: state || '',
         city: city || '',
         street: street || '',
-        phone: res.data.data.phone,
-        diploma: res.data.data.diploma,
-        speciality: res.data.data.speciality,
-        hourly_rate: res.data.data.hourly_rate,
-        gender: res.data.data.gender,
+        phone: res.data.data.phone || '',
+        diploma: res.data.data.diploma || '',
+        speciality: res.data.data.speciality || '',
+        // Convert hourly_rate to string
+        hourly_rate: res.data.data.hourly_rate ? String(res.data.data.hourly_rate) : '',
       });
+  
       const countryObj = countriesData.find(c => c.name === country);
-    setSelectedCountry(countryObj);
-
-    if (countryObj) {
-      const stateObj = countryObj.states.find(s => s.name === state);
-      setSelectedState(stateObj);
-    }
-
+      setSelectedCountry(countryObj);
+  
+      if (countryObj) {
+        const stateObj = countryObj.states.find(s => s.name === state);
+        setSelectedState(stateObj);
+      }
     });
   }, [id]);
 
@@ -377,19 +380,29 @@ export default function EditTeacher() {
   <option value="Doctorat">Doctorat</option>
   <option value="Other">Other</option>
 </Form.Select>
-          {formik.touched.diploma && formik.errors.diploma && (
-            <div className='invalid-feedback'>{formik.errors.diploma}</div>
-          )}
-          {formik.values.diploma === 'Other' && (
-            <Form.Control
-              id='customDiploma'
-              type='text'
-              value={customDiploma}
-              onChange={e => setCustomDiploma(e.target.value)}
-              placeholder='Enter custom diploma'
-            />
-          )}
-        </Col>
+{formik.touched.diploma && formik.errors.diploma && (
+  <div className='invalid-feedback'>{formik.errors.diploma}</div>
+)}
+</Col>
+
+{/* Show custom diploma input if "Other" is selected */}
+{formik.values.diploma === 'Other' && (
+  <Col md={3} className='mb-3'>
+    <Form.Label htmlFor='customDiploma'>Custom Diploma</Form.Label>
+    <Form.Control
+      id='customDiploma'
+      type='text'
+      value={customDiploma}
+      onChange={(e) => setCustomDiploma(e.target.value)}
+      className={`form-control ${
+        !customDiploma && formik.touched.diploma && formik.values.diploma === 'Other' ? 'is-invalid' : ''
+      }`}
+    />
+    {!customDiploma && formik.touched.diploma && formik.values.diploma === 'Other' && (
+      <div className='invalid-feedback'>Custom diploma is required when "Other" is selected</div>
+    )}
+  </Col>
+)}
 
         <Col md={3} className='mb-3'>
           <Form.Label htmlFor='hourly_rate'>Hourly Rate*</Form.Label>

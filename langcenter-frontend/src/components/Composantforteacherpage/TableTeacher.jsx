@@ -191,7 +191,7 @@ export default function TableTeacher() {
   const columns = [
     { name: 'ID', selector: row => row.id, sortable: true,
       width: '70px'},
-    { name: 'Name / Nom', selector: row => row.name, wrap: true , sortable: true,
+    { name: 'Name / Nom', selector: row => row.name, sortable: true,
       wrap: true },
     { name: 'Gender / Sexe', selector: row => row.gender , sortable: true,
       },
