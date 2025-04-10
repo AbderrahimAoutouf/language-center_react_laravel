@@ -7,7 +7,6 @@ import axios from "../../api/axios";
 import { UseStateContext } from "../../context/ContextProvider";
 import { useNavigate } from 'react-router-dom';
 import countriesData from '../../data/countries+states+cities.json';
-
 export default function AddTeacher() {
   const { user, setNotification, setVariant } = UseStateContext();
   const navigate = useNavigate();
@@ -17,9 +16,11 @@ export default function AddTeacher() {
   const [cities, setCities] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedState, setSelectedState] = useState(null);
-
+  const [avatarUrl, setAvatarUrl] = useState(""); // Avatar URL state
+  const [newTeacherId, setNewTeacherId] = useState(null);
 
   let x = user?.role === 'admin' ? "" : user?.role === 'director' ? "/director" : "/secretary";
+
   useEffect(() => {
     setCountries(countriesData);
   }, []);
@@ -40,7 +41,6 @@ export default function AddTeacher() {
       setCities([]);
     }
   }, [selectedState]);
-
 
   const formik = useFormik({
     initialValues: {
@@ -76,22 +76,31 @@ export default function AddTeacher() {
       speciality: Yup.string().notRequired(),
     }),
     onSubmit: (values) => {
-      const postData = {
-        first_name: values.firstName,
-        last_name: values.lastName,
-        cin: values.cin,
-        birthday: values.birthday,
-        gender: values.gender,
-        email: values.email,
-        address: `${values.street}, ${values.city}, ${values.state}, ${values.country}`,
-        phone: values.phone,
-        diploma: values.diploma && values.diploma !== 'Other' ? values.diploma : customDiploma,
-        hourly_rate: values.hourly_rate,
-        speciality: values.speciality,
-      };
+      const formData = new FormData();
+      // Append avatar URL (image) to FormData
+      if (avatarUrl) {
+        formData.append('avatar', avatarUrl); // Send the avatar file
+      }
+      formData.append('first_name', values.firstName);
+      formData.append('last_name', values.lastName);
+      formData.append('cin', values.cin);
+      formData.append('birthday', values.birthday);
+      formData.append('gender', values.gender);
+      formData.append('email', values.email);
+      formData.append('address', `${values.street}, ${values.city}, ${values.state}, ${values.country}`);
+      formData.append('phone', values.phone);
+      formData.append('diploma', values.diploma && values.diploma !== 'Other' ? values.diploma : customDiploma);
+      formData.append('hourly_rate', values.hourly_rate);
+      formData.append('speciality', values.speciality);
 
-      axios.post('/api/teachers', postData).then(() => {
+      // Make POST request to add teacher
+      axios.post('/api/teachers', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+      }).then((res) => {
         setNotification("Teacher added successfully");
+        setNewTeacherId(res.data.id);
         setVariant("success");
         setTimeout(() => {
           setNotification("");
@@ -104,9 +113,7 @@ export default function AddTeacher() {
           formik.setErrors(error.response.data.errors);
         }
       });
-    }, catch (err) {
-      console.error("Unexpected error in onSubmit:", err); // Catch other errors
-    }
+    },
   });
 
   return (
@@ -386,7 +393,8 @@ export default function AddTeacher() {
             (Ctrl + click) or (⌘ + click) to select multiple classes  
           </div>
         </Col> */}
-        <AvatarEdit button='Add Teacher profile photo' />
+        <AvatarEdit button='Add Teacher profile photo' setImageData={setAvatarUrl}
+        teacherId={newTeacherId} initialImage={avatarUrl}/>
       </Row>
 
       <Button type='submit' className='btn btn-primary'>

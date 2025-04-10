@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('email')->unique()->nullable();
             $table->string('phone')->unique();
             $table->timestamps();
+            $table->string('avatar')->nullable();
         });
     }
 

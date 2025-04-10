@@ -145,7 +145,8 @@ export default function EnseignantDetails() {
                     hourly_rate: `${data.hourly_rate}DH`,
                     created_at: data.created_at,
                     avatar: data.avatar || null,  // Add this line
-                    updated_at: data.updated_at
+                    updated_at: data.updated_at,
+                    avatar: res.data.avatar,
                 });
                 setNotification && setNotification("Teacher data refreshed successfully");
                 setVariant && setVariant("success");

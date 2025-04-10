@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import photoProfile from '../../images/user.png';
+import axios from '../../api/axios'; 
 
-function AvatarEdit({ setImageData }) {
+function AvatarEdit({ setImageData , teacherId}) {
   const [imageSrc, setImageSrc] = useState(null);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -23,6 +24,21 @@ function AvatarEdit({ setImageData }) {
       reader.readAsDataURL(file);
     }
   };
+  const uploadImage = async (croppedImageUrl) => {
+    try {
+      const formData = new FormData();
+      const blob = await fetch(croppedImageUrl).then(r => r.blob());
+      formData.append('avatar', blob, `teacher_${teacherId}_avatar.jpg`);
+      
+      const res = await axios.post(`/api/teachers/${teacherId}/avatar`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      return res.data.url; // Return the uploaded image URL
+    } catch (err) {
+      console.error("Upload failed:", err);
+    }
+  };
 
   const getCroppedImage = useCallback(async () => {
     if (!imageSrc || !croppedAreaPixels) return;
@@ -30,9 +46,11 @@ function AvatarEdit({ setImageData }) {
     const canvas = document.createElement('canvas');
     const image = new Image();
     image.src = imageSrc;
+    
 
     await new Promise((resolve) => {
       image.onload = resolve;
+    
     });
 
     const ctx = canvas.getContext('2d');
@@ -58,7 +76,9 @@ function AvatarEdit({ setImageData }) {
     if (typeof setImageData === 'function') {
       setImageData(croppedImageUrl);
     }
-  }, [imageSrc, croppedAreaPixels, setImageData]);
+    const uploadedUrl = await uploadImage(croppedImageUrl);
+    setImageData(uploadedUrl); 
+  }, [imageSrc, croppedAreaPixels, setImageData, teacherId]);
 
   return (
     <div className="EditAvatar">

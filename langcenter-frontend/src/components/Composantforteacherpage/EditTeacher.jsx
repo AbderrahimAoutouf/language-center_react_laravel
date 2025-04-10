@@ -17,6 +17,7 @@ export default function EditTeacher() {
   const [cities, setCities] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedState, setSelectedState] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState("");
   
   const { id } = useParams();
   let x = "";
@@ -99,6 +100,7 @@ export default function EditTeacher() {
         diploma: values.diploma && values.diploma !== 'Other' ? values.diploma : customDiploma,
         hourly_rate: values.hourly_rate,
         speciality: values.speciality,
+        avatar: avatarUrl,
       }
       axios.put('/api/teachers/' + id, postData).then((res) => {
         setNotification("Teacher has been edited successfully");
@@ -120,6 +122,7 @@ export default function EditTeacher() {
 
   useEffect(() => {
     axios.get(`/api/teachers/${id}`).then((res) => {
+      setAvatarUrl(res.data.avatar);
       const addressParts = res.data.data.address?.split(',').map(part => part.trim()) || [];
       const [street, city, state, country] = addressParts;
   
@@ -420,7 +423,7 @@ export default function EditTeacher() {
 
       <Row className='mb-3'>
         <Col>
-          <AvatarEdit />
+          <AvatarEdit setImageData={setAvatarUrl}teacherId={id} initialImage={avatarUrl}/>
         </Col>
       </Row>
 

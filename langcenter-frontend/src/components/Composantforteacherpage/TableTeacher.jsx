@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import DataTable from 'react-data-table-component';
-import { BsFillPencilFill, BsDownload , BsSearch, BsPersonPlus} from 'react-icons/bs';
+import { BsFillPencilFill, BsDownload } from 'react-icons/bs';
 import { MdDelete, MdToggleOn, MdToggleOff } from 'react-icons/md';
 import { FaEye } from 'react-icons/fa';
 import { UseStateContext } from '../../context/ContextProvider';
@@ -10,6 +10,7 @@ import { Ellipsis } from 'react-awesome-spinners';
 import { saveAs } from 'file-saver';
 import { Parser } from '@json2csv/plainjs';
 import * as XLSX from 'xlsx';
+import imgTeacher from "../../images/teacher.png"; // Default avatar image
 
 export default function TableTeacher() {
   const [teacherData, setTeacherData] = useState([]);
@@ -18,7 +19,7 @@ export default function TableTeacher() {
   const [pending, setPending] = useState(true);
   const { user, setNotification, setVariant } = UseStateContext();
 
-  const tableCustomStyles = {
+  const tableCustomStyles = useMemo(() => ({
     table: {
       style: {
         borderRadius: '8px',
@@ -68,7 +69,7 @@ export default function TableTeacher() {
         fontSize: '14px',
       },
     },
-  };
+  }), []);
 
   const getRolePath = () => {
     if (!user) return "";
@@ -84,19 +85,17 @@ export default function TableTeacher() {
       try {
         const res = await axios.get("api/teachers?populate=*");
         const data = res.data?.data || [];
-
-        setTeacherData(
-          data.map((item) => ({
-            id: item.id,
-            active: item.active,
-            name: `${item.first_name} ${item.last_name}`,
-            gender: item.gender,
-            class: item.classes?.length ? item.classes.map(c => c.name).join(', ') : 'No class',
-            subject: item.speciality,
-            phone: item.phone,
-            hourly_rate: item.hourly_rate,
-          }))
-        );
+        setTeacherData(data.map(item => ({
+          id: item.id,
+          avatar: item.avatar,  // Ensure the avatar is included
+          active: item.active,
+          name: `${item.first_name} ${item.last_name}`,
+          gender: item.gender,
+          class: item.classes?.length ? item.classes.map(c => c.name).join(', ') : 'No class',
+          subject: item.speciality,
+          phone: item.phone,
+          hourly_rate: item.hourly_rate,
+        })));
       } catch (err) {
         console.error(err);
         setNotification("Failed to load data");
@@ -107,7 +106,7 @@ export default function TableTeacher() {
     };
 
     fetchTeachers();
-  }, []);
+  }, [setNotification, setVariant]);
 
   const handleExportCSV = () => {
     try {
@@ -140,31 +139,23 @@ export default function TableTeacher() {
 
   const toggleActive = async (id, status) => {
     try {
-      // Use the dedicated toggle-active endpoint
       const res = await axios.patch(`api/teachers/${id}/toggle-active`);
-      
-      // Get the updated status from the response
       const updatedStatus = res.data?.data?.active;
-  
+
       setTeacherData(prev =>
         prev.map(t => t.id === id ? { ...t, active: updatedStatus } : t)
       );
-  
-      // Show notification with status
+
       setNotification(`Teacher status ${updatedStatus ? 'activated' : 'deactivated'}`);
       setVariant(updatedStatus ? "success" : "warning");
-      
-      // Auto-clear notification after 3 seconds
+
       setTimeout(() => {
         setNotification(null);
       }, 3000);
-      
     } catch (err) {
       console.error(err);
       setNotification("Failed to update status");
       setVariant("danger");
-      
-      // Also clear error notifications
       setTimeout(() => {
         setNotification(null);
       }, 3000);
@@ -191,26 +182,30 @@ export default function TableTeacher() {
     }, 3000);
   };
 
-  const filteredData = teacherData.filter(t =>
+  const filteredData = useMemo(() => teacherData.filter(t =>
     t.name.toLowerCase().includes(nameFilter.toLowerCase()) &&
     t.class.toLowerCase().includes(classFilter.toLowerCase())
-  );
+  ), [teacherData, nameFilter, classFilter]);
 
   const columns = [
-    { name: 'ID', selector: row => row.id, sortable: true,
-      width: '70px'},
-    { name: 'Name / Nom', selector: row => row.name, sortable: true,
-      wrap: true },
-    { name: 'Gender / Sexe', selector: row => row.gender , sortable: true,
-      },
-    { name: 'Class / Classe', selector: row => row.class , sortable: true,
-      },
-    { name: 'Subject / Matière', selector: row => row.subject , sortable: true,
-      },
-    { name: 'Phone / Tel.', selector: row => row.phone , sortable: true,
-      },
-    { name: 'Hourly Rate / Taux Horaire', selector: row => row.hourly_rate , sortable: true,
-      format: row => `${row.hourly_rate}DH`},
+    { name: 'ID', selector: row => row.id, sortable: true, width: '70px' },
+    {
+      name: 'Avatar',
+      cell: row => (
+        <img 
+          src={row.avatar ? `http://yourdomain.com/${row.avatar}` : imgTeacher}  // Use the teacher's avatar or the default image if not available
+          style={{ width: '40px', height: '40px', borderRadius: '50%' }}
+          alt="Avatar"
+        />
+      ),
+      width: '80px'
+    },
+    { name: 'Name / Nom', selector: row => row.name, sortable: true, wrap: true },
+    { name: 'Gender / Sexe', selector: row => row.gender , sortable: true },
+    { name: 'Class / Classe', selector: row => row.class , sortable: true },
+    { name: 'Subject / Matière', selector: row => row.subject , sortable: true },
+    { name: 'Phone / Tel.', selector: row => row.phone , sortable: true },
+    { name: 'Hourly Rate / Taux Horaire', selector: row => row.hourly_rate , sortable: true, format: row => `${row.hourly_rate}DH` },
     {
       name: 'Status',
       sortable: true,
@@ -233,11 +228,7 @@ export default function TableTeacher() {
               ? <MdToggleOn color="green" size={22} />
               : <MdToggleOff color="gray" size={22} />
             }
-            <span style={{ 
-              fontSize: '14px', 
-              fontWeight: 'medium',
-                color: row.active ? '#198754' : '#6c757d'
-            }}>
+            <span style={{ fontSize: '14px', fontWeight: 'medium', color: row.active ? '#198754' : '#6c757d' }}>
               {row.active ? 'Active' : 'Inactive'}
             </span>
           </button>
@@ -249,17 +240,16 @@ export default function TableTeacher() {
       cell: row => (
         <div className="actions d-flex gap-2 justify-content-center">
           <Link to={`${getRolePath()}/teacher/details/${row.id}`}>
-          <button className="btn btn-sm btn-outline-primary" title="View Details">
-            <FaEye  size={14} />
-            </button></Link>
-            <Link to={`${getRolePath()}/teacher/edit/${row.id}`}>
+            <button className="btn btn-sm btn-outline-primary" title="View Details">
+              <FaEye size={14} />
+            </button>
+          </Link>
+          <Link to={`${getRolePath()}/teacher/edit/${row.id}`}>
             <button className="btn btn-sm btn-outline-warning" title="Edit">
               <BsFillPencilFill size={14} />
             </button>
           </Link>
-          
-          <button onClick={() => deleteTeacher(row.id)} className="btn btn-sm btn-outline-danger" 
-          title="Delete">
+          <button onClick={() => deleteTeacher(row.id)} className="btn btn-sm btn-outline-danger" title="Delete">
             <MdDelete size={16} />
           </button>
         </div>
@@ -296,7 +286,7 @@ export default function TableTeacher() {
         </Link>
       </div>
 
-          <DataTable
+      <DataTable
         columns={columns}
         data={filteredData}
         fixedHeader
@@ -304,9 +294,8 @@ export default function TableTeacher() {
         progressPending={pending}
         className="mt-4"
         customStyles={tableCustomStyles}
-        progressComponent={<Ellipsis size={64} color='#D60A0B' />}
+        progressComponent={<Ellipsis size={64} color='#D9A602' />}
       />
     </div>
-   
   );
 }

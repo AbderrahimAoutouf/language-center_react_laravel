@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Http\Resources\TeacherResource;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
 
 class TeacherController extends Controller
 {
@@ -36,8 +38,14 @@ class TeacherController extends Controller
                 'F' => 'nullable|string',
                 'hourly_rate' => 'required|integer',
                 'birthday' => 'required|date',
-                'gender' => 'required|string'
+                'gender' => 'required|string',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
             ]);
+            if ($request->hasFile('avatar')) {
+                $path = $request->file('avatar')->store('avatars', 'public');
+                $validated['avatar'] = $path;
+            }
+        
 
             $teacher = Teacher::create([
                 'first_name' => $validated['first_name'],
@@ -100,8 +108,18 @@ class TeacherController extends Controller
                 'speciality' => 'nullable|string',
                 'hourly_rate' => 'required|integer',
                 'birthday' => 'required|date',
-                'gender' => 'required|string'
+                'gender' => 'required|string',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
             ]);
+            if ($request->hasFile('avatar')) {
+                // Supprimer l'ancien avatar
+                if ($teacher->avatar) {
+                    Storage::disk('public')->delete($teacher->avatar);
+                }
+                
+                $path = $request->file('avatar')->store('avatars', 'public');
+                $data['avatar'] = $path;
+            }
 
             $teacher->update($data);
             return new TeacherResource($teacher);
@@ -144,4 +162,26 @@ class TeacherController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * 
+     */
+
+    public function updateAvatar(Request $request, Teacher $teacher)
+{
+    $request->validate([
+        'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
+    ]);
+
+    if ($teacher->avatar && $teacher->avatar != 'avatars/default-avatar.jpg') {
+        Storage::disk('public')->delete($teacher->avatar);
+    }
+
+    $path = $request->file('avatar')->store('avatars', 'public');
+    $teacher->update(['avatar' => $path]);
+
+    return response()->json([
+        'avatar_url' => asset("storage/$path")
+    ]);
+}
 }
