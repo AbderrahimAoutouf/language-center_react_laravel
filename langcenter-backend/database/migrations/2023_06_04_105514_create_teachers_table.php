@@ -16,13 +16,13 @@ return new class extends Migration
             $table->string('first_name');
             $table->string('last_name');
             $table->char('cin', 8)->unique();
-            $table->date('birthday');
-            $table->string('address');
-            $table->string('gender');
+            $table->date('birthday')->nullable();
+            $table->string('address')->nullable();
+            $table->string('gender')->nullable();
             $table->string('speciality')->nullable();
             $table->string('diploma')->nullable();
             $table->date('hiredate');
-            $table->integer('hourly_rate');
+            $table->integer('hourly_rate')->nullable();
             $table->string('email')->unique()->nullable();
             $table->string('phone')->unique();
             $table->timestamps();

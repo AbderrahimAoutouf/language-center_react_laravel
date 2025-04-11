@@ -30,15 +30,15 @@ class TeacherController extends Controller
             $validated = $request->validate([
                 'first_name' => 'required|string',
                 'last_name' => 'required|string',
-                'address' => 'required|string',
-                'cin' => 'required|string|unique:teachers,cin',
+                'address' => 'nullable|string',
+                'cin' => 'nullable|string|unique:teachers,cin',
                 'email' => 'nullable|email|unique:teachers,email',
                 'phone' => 'required|string|unique:teachers,phone',
                 'diploma' => 'nullable|string',
                 'F' => 'nullable|string',
-                'hourly_rate' => 'required|integer',
-                'birthday' => 'required|date',
-                'gender' => 'required|string',
+                'hourly_rate' => 'nullable|integer',
+                'birthday' => 'nullable|date',
+                'gender' => 'nullable|string',
                 'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
             ]);
             if ($request->hasFile('avatar')) {
@@ -50,16 +50,16 @@ class TeacherController extends Controller
             $teacher = Teacher::create([
                 'first_name' => $validated['first_name'],
                 'last_name' => $validated['last_name'],
-                'address' => $validated['address'],
-                'cin' => $validated['cin'],
+                'address' => $validated['address'] ?? null,
+                'cin' => $validated['cin'] ?? null,
                 'email' => $validated['email'] ?? null,
                 'phone' => $validated['phone'],
                 'diploma' => $validated['diploma'] ?? null,
                 'speciality' => $validated['speciality'] ?? null,
-                'hourly_rate' => $validated['hourly_rate'],
-                'birthday' => $validated['birthday'],
+                'hourly_rate' => $validated['hourly_rate'] ?? null,
+                'birthday' => $validated['birthday'] ?? null,
                 'hiredate' => now(),
-                'gender' => $validated['gender'],
+                'gender' => $validated['gender'] ?? null,
             ]);
 
             return new TeacherResource($teacher);
@@ -88,9 +88,9 @@ class TeacherController extends Controller
             $data = $request->validate([
                 'first_name' => 'required|string',
                 'last_name' => 'required|string',
-                'address' => 'required|string',
+                'address' => 'nullable|string',
                 'cin' => [
-                    'required',
+                    'nullable',
                     'string',
                     Rule::unique('teachers')->ignore($teacher->id),
                 ],
@@ -106,9 +106,9 @@ class TeacherController extends Controller
                 ],
                 'diploma' => 'nullable|string',
                 'speciality' => 'nullable|string',
-                'hourly_rate' => 'required|integer',
-                'birthday' => 'required|date',
-                'gender' => 'required|string',
+                'hourly_rate' => 'nullable|integer',
+                'birthday' => 'nullable|date',
+                'gender' => 'nullable|string',
                 'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
             ]);
             if ($request->hasFile('avatar')) {

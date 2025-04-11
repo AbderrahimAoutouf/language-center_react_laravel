@@ -38,19 +38,62 @@ function FormC() {
     // Fetch available classes and levels from the database
   useEffect(() => {
     axios.get('/api/classes').then((res) => {
+      console.log("Class data structure:", res.data);
       setClassData(res.data);
-      console.log(res);
+     
     });
   }, []);
+  const [isLoading, setIsLoading] = useState(true);
+
+useEffect(() => {
+  setIsLoading(true);
+  axios.get('/api/classes').then((res) => {
+    setClassData(res.data);
+    setIsLoading(false);
+  }).catch(err => {
+    console.error("Error loading class data:", err);
+    setIsLoading(false);
+  });
+}, []);
 
   // Fetch available tests from the database
   useEffect(() => {
     axios.get('/api/tests').then((res) => {
-      setTests(res.data.data);
-      console.log(res.data.data);
-      setTestPrice(+res.data.data[0].price)
+      console.log("Full API response:", res);
+      console.log("Data structure:", res.data);
+      
+      // Then adjust how you access the data based on the actual structure
+      if (res.data && res.data.data && res.data.data.length > 0 && res.data.data[0].price !== undefined) {
+        setTestPrice(+res.data.data[0].price);
+      } else {
+        // Try to find price in a different location based on actual response
+        // Example: maybe it's directly in res.data instead of res.data.data
+        const priceValue = findPriceInResponse(res);
+        setTestPrice(priceValue || 0);
+        
+        if (!priceValue) {
+          console.warn("Test price data not available or not in expected format");
+        }
+      }
+      
+      // Also update how you set the tests state
+      setTests(Array.isArray(res.data.data) ? res.data.data : []);
+    }).catch(error => {
+      console.error("Error fetching tests:", error);
     });
   }, []);
+  
+  // Helper function to find price in different places in the response
+  const findPriceInResponse = (response) => {
+    if (response.data && Array.isArray(response.data) && response.data[0]?.price) {
+      return +response.data[0].price;
+    }
+    if (response.data && response.data.price) {
+      return +response.data.price;
+    }
+    // Add other possible locations based on what you see in the console logs
+    return null;
+  }
   useEffect(() => {
       setCountries(countriesData);
     }, []);
@@ -155,10 +198,12 @@ function FormC() {
 
   // Find the course fees based on the class id
   const findCoursFees = (classId) => {
+    if (isLoading || !classData.length) return 0;
+    
     const classFees = classData.find((c) => c.id == classId);
-    if (classFees){
+    if (classFees && classFees.cours && classFees.cours.price !== undefined){
       return classFees.cours.price;
-    }else {
+    } else {
       return 0;
     }
   }
@@ -169,17 +214,17 @@ function FormC() {
     let response2 = [];
     let response3 = [];
     console.log(formik.values);
-        let adultData = {
+    let adultData = {
       prenom: formik.values.firstName,
       nom: formik.values.lastName,
       date_naissance: formik.values.dateofBirth,
       sexe: formik.values.gender,
       email: formik.values.email,
       telephone: formik.values.phone,
-      adresse: formik.values.address,
+      adresse: `${formik.values.street}, ${formik.values.city}, ${formik.values.state}, ${formik.values.country}`,
       adulte: formik.values.adult,
       underAge: false,
-    } 
+    }
     let etudiantData = adultData;
     if (underAge === true){
        etudiantData = {
@@ -198,9 +243,23 @@ function FormC() {
     }
     try{
       response = await axios.post('/api/etudiants',etudiantData);
+      if (response && response.data && response.data.data) {
+        const etudiantId = response.data.data.id;
+      } else {
+        console.error("Invalid response structure:", response); }
     } catch (error) {
       console.log(error);
-      formik.setErrors({...error.response.data.errors,phone: error.response.data.errors.telephone,guardPhone: error.response.data.errors.parent_telephone,guardCin: error.response.data.errors.parent_cin,guardEmail: error.response.data.errors.parent_email});
+      if (error.response && error.response.data && error.response.data.errors) {
+        formik.setErrors({
+          ...error.response.data.errors,
+          phone: error.response.data.errors.telephone,
+          guardPhone: error.response.data.errors.parent_telephone,
+          guardCin: error.response.data.errors.parent_cin,
+          guardEmail: error.response.data.errors.parent_email
+        });
+      }
+      setNotification("Failed to add student");
+      setVariant("danger");
     }
     console.log(response.data.data.id);
     const etudiantId = response.data.data.id;

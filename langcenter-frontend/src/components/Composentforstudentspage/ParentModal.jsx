@@ -11,6 +11,7 @@ export default function ParentModal({showModal,handleClose,id}) {
     const [parent, setParent] = useState([]);
 
     useEffect(() => {
+        if (showModal && id) { 
         axios.get(`api/parents/${id}`).then((response) => {
             console.log(response.data.data);
             setParent({
@@ -31,7 +32,8 @@ export default function ParentModal({showModal,handleClose,id}) {
         ).catch((error) => {
             console.log(error);
         });
-    }, []);
+    }
+    }, [showModal, id]);
     const etudiant = {
         id:'1',
         nom: 'Wade7',

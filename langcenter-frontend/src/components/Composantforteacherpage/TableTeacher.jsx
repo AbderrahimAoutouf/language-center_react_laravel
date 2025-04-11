@@ -10,7 +10,9 @@ import { Ellipsis } from 'react-awesome-spinners';
 import { saveAs } from 'file-saver';
 import { Parser } from '@json2csv/plainjs';
 import * as XLSX from 'xlsx';
-import imgTeacher from "../../images/teacher.png"; // Default avatar image
+import imgTeacher from "../../images/teacher.png"; 
+import Button from "../Button";
+// Default avatar image
 
 export default function TableTeacher() {
   const [teacherData, setTeacherData] = useState([]);
@@ -88,13 +90,14 @@ export default function TableTeacher() {
         setTeacherData(data.map(item => ({
           id: item.id,
           avatar: item.avatar,  // Ensure the avatar is included
-          active: item.active,
+          active: item.active || null,
           name: `${item.first_name} ${item.last_name}`,
           gender: item.gender,
           class: item.classes?.length ? item.classes.map(c => c.name).join(', ') : 'No class',
           subject: item.speciality,
           phone: item.phone,
           hourly_rate: item.hourly_rate,
+          
         })));
       } catch (err) {
         console.error(err);
@@ -193,9 +196,12 @@ export default function TableTeacher() {
       name: 'Avatar',
       cell: row => (
         <img 
-          src={row.avatar ? `http://yourdomain.com/${row.avatar}` : imgTeacher}  // Use the teacher's avatar or the default image if not available
-          style={{ width: '40px', height: '40px', borderRadius: '50%' }}
+          src={row.avatar || imgTeacher} // Utiliser l'avatar de la ligne ou l'image par défaut
+          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
           alt="Avatar"
+          onError={(e) => {
+            e.target.src = imgTeacher; // Fallback en cas d'erreur de chargement
+          }}
         />
       ),
       width: '80px'

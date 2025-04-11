@@ -72,19 +72,18 @@ export default function EditTeacher() {
     validationSchema: Yup.object({
       firstName: Yup.string().required('First name is required'),
       lastName: Yup.string().required('Last name is required'),
-      cin: Yup.string().required('CIN is required'),
-      birthday: Yup.date().required('Birthday is required'),
-      gender: Yup.string().required('Gender is required'),
-      email: Yup.string()
-        .matches(/^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, 'Invalid email address').nullable(),
-      country: Yup.string().required('Country is required'),
-      state: Yup.string().required('State is required'),
-      city: Yup.string().required('City is required'),
-      street: Yup.string().required('Street is required'),
-      phone: Yup.string().required('Phone number is required'),
+      cin: Yup.string().notRequired(),
+      birthday: Yup.date().notRequired(),
+      gender: Yup.string().notRequired(),
+      email: Yup.string().email('Invalid email').notRequired(),
+      country: Yup.string().notRequired(),
+      state: Yup.string().notRequired(),
+      city: Yup.string().notRequired(),
+      street: Yup.string().notRequired(),
+      phone: Yup.string().required(),
       diploma: Yup.string().notRequired().nullable().matches(/^[a-zA-Z\s]*$/, 'Invalid diploma value'),
-      hourly_rate: Yup.number().required('Hourly rate is required'),
-      speciality: Yup.string().nullable(),
+      hourly_rate: Yup.number().notRequired(),
+      speciality: Yup.string().notRequired(),
     }),
     onSubmit: (values) => {
       // Handle form submission and add teacher
@@ -187,7 +186,7 @@ export default function EditTeacher() {
         </Col>
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='cin'>CIN*</Form.Label>
+          <Form.Label htmlFor='cin'>CIN</Form.Label>
           <Form.Control
             id='cin'
             type='text'
@@ -200,7 +199,7 @@ export default function EditTeacher() {
         </Col>
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='birthday'>Birthday*</Form.Label>
+          <Form.Label htmlFor='birthday'>Birthday</Form.Label>
           <Form.Control
             id='birthday'
             type='date'
@@ -215,7 +214,7 @@ export default function EditTeacher() {
 
       <Row>
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='gender'>Gender*</Form.Label>
+          <Form.Label htmlFor='gender'>Gender</Form.Label>
           <Form.Select
             id='gender'
             className={`form-select ${formik.errors.gender && formik.touched.gender ? 'is-invalid' : ''}`}
@@ -247,7 +246,7 @@ export default function EditTeacher() {
         
                 <Row>
                 <Col md={3} className='mb-3'>
-                  <Form.Label htmlFor='country'>Country*</Form.Label>
+                  <Form.Label htmlFor='country'>Country</Form.Label>
                   <Form.Select
                     id='country'
                     className={`form-select ${formik.errors.country && formik.touched.country ? 'is-invalid' : ''}`}
@@ -271,7 +270,7 @@ export default function EditTeacher() {
                 </Col>
         
                 <Col md={3} className='mb-3'>
-                  <Form.Label htmlFor='state'>State*</Form.Label>
+                  <Form.Label htmlFor='state'>State</Form.Label>
                   <Form.Select
                     id='state'
                     className={`form-select ${formik.errors.state && formik.touched.state ? 'is-invalid' : ''}`}
@@ -295,7 +294,7 @@ export default function EditTeacher() {
                 </Col>
         
                 <Col md={3} className='mb-3'>
-                  <Form.Label htmlFor='city'>City*</Form.Label>
+                  <Form.Label htmlFor='city'>City</Form.Label>
                   {cities.length > 0 ? (
                     <Form.Select
                       id='city'
@@ -323,7 +322,7 @@ export default function EditTeacher() {
                 </Col>
         
                 <Col md={3} className='mb-3'>
-                  <Form.Label htmlFor='street'>Street*</Form.Label>
+                  <Form.Label htmlFor='street'>Street</Form.Label>
                   <Form.Control
                     id='street'
                     type='text'
@@ -366,7 +365,7 @@ export default function EditTeacher() {
         </Col>
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='diploma'>Diploma*</Form.Label>
+          <Form.Label htmlFor='diploma'>Diploma</Form.Label>
           <Form.Select
   id="diploma"
   className="form-select"
@@ -408,7 +407,7 @@ export default function EditTeacher() {
 )}
 
         <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='hourly_rate'>Hourly Rate*</Form.Label>
+          <Form.Label htmlFor='hourly_rate'>Hourly Rate</Form.Label>
           <Form.Control
             id='hourly_rate'
             type='number'
@@ -428,6 +427,7 @@ export default function EditTeacher() {
       </Row>
 
       <Button type='submit' className='btn btn-primary'>Save</Button>
+      <Button type="button" variant="secondary" onClick={() => navigate(`${x}/teacher`)} >Cancel </Button>
     </Form>
   );
 }
