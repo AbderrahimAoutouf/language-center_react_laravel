@@ -4,15 +4,14 @@ import DataTable from 'react-data-table-component';
 import { BsFillPencilFill, BsDownload } from 'react-icons/bs';
 import { MdDelete, MdToggleOn, MdToggleOff } from 'react-icons/md';
 import { FaEye } from 'react-icons/fa';
+import { motion } from 'framer-motion';
 import { UseStateContext } from '../../context/ContextProvider';
 import axios from "../../api/axios";
 import { Ellipsis } from 'react-awesome-spinners';
 import { saveAs } from 'file-saver';
 import { Parser } from '@json2csv/plainjs';
 import * as XLSX from 'xlsx';
-import imgTeacher from "../../images/teacher.png"; 
-import Button from "../Button";
-// Default avatar image
+import imgTeacher from "../../images/teacher.png";
 
 export default function TableTeacher() {
   const [teacherData, setTeacherData] = useState([]);
@@ -21,65 +20,9 @@ export default function TableTeacher() {
   const [pending, setPending] = useState(true);
   const { user, setNotification, setVariant } = UseStateContext();
 
-  const tableCustomStyles = useMemo(() => ({
-    table: {
-      style: {
-        borderRadius: '8px',
-        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.05)',
-      },
-    },
-    headRow: {
-      style: {
-        borderTopLeftRadius: '8px',
-        borderTopRightRadius: '8px',
-        backgroundColor: '#f8f9fa',
-        borderBottom: '2px solid #e9ecef',
-      },
-    },
-    headCells: {
-      style: {
-        fontSize: '16px',
-        fontWeight: 'bold',
-        color: '#495057',
-        justifyContent: 'center',
-        paddingTop: '16px',
-        paddingBottom: '16px',
-      },
-    },
-    rows: {
-      style: {
-        minHeight: '60px',
-        '&:hover': {
-          backgroundColor: '#f1f3f5',
-        },
-      },
-      stripedStyle: {
-        backgroundColor: '#f8f9fa',
-      },
-    },
-    cells: {
-      style: {
-        fontSize: '14px',
-        justifyContent: 'center',
-        paddingTop: '12px',
-        paddingBottom: '12px',
-      },
-    },
-    pagination: {
-      style: {
-        borderTop: '1px solid #e9ecef',
-        fontSize: '14px',
-      },
-    },
-  }), []);
-
   const getRolePath = () => {
     if (!user) return "";
-    switch (user.role) {
-      case "director": return "/director";
-      case "secretary": return "/secretary";
-      default: return "";
-    }
+    return user.role === "director" ? "/director" : "/secretary";
   };
 
   useEffect(() => {
@@ -89,7 +32,7 @@ export default function TableTeacher() {
         const data = res.data?.data || [];
         setTeacherData(data.map(item => ({
           id: item.id,
-          avatar: item.avatar,  // Ensure the avatar is included
+          avatar: item.avatar,
           active: item.active || null,
           name: `${item.first_name} ${item.last_name}`,
           gender: item.gender,
@@ -97,7 +40,6 @@ export default function TableTeacher() {
           subject: item.speciality,
           phone: item.phone,
           hourly_rate: item.hourly_rate,
-          
         })));
       } catch (err) {
         console.error(err);
@@ -118,8 +60,7 @@ export default function TableTeacher() {
       saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), 'teachers_export.csv');
       setNotification("CSV exported successfully");
       setVariant("success");
-    } catch (err) {
-      console.error(err);
+    } catch {
       setNotification("Export failed");
       setVariant("danger");
     }
@@ -133,8 +74,7 @@ export default function TableTeacher() {
       XLSX.writeFile(wb, 'teachers.xlsx');
       setNotification("Excel exported successfully");
       setVariant("success");
-    } catch (err) {
-      console.error(err);
+    } catch {
       setNotification("Export failed");
       setVariant("danger");
     }
@@ -151,17 +91,9 @@ export default function TableTeacher() {
 
       setNotification(`Teacher status ${updatedStatus ? 'activated' : 'deactivated'}`);
       setVariant(updatedStatus ? "success" : "warning");
-
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setNotification("Failed to update status");
       setVariant("danger");
-      setTimeout(() => {
-        setNotification(null);
-      }, 3000);
     }
   };
 
@@ -172,17 +104,12 @@ export default function TableTeacher() {
       setNotification("Teacher deleted successfully");
       setVariant("success");
     } catch (err) {
-      console.error(err);
-      if (err.response?.status === 400 && err.response?.data?.message?.includes("foreign key constraint")) {
-        setNotification("Cannot delete teacher: Teacher is assigned to one or more classes.");
-      } else {
-        setNotification("Delete failed");
-      }
+      setNotification(err.response?.status === 400 ? 
+        "Cannot delete: Teacher is assigned to classes." : 
+        "Delete failed"
+      );
       setVariant("danger");
     }
-    setTimeout(() => {
-      setNotification(null);
-    }, 3000);
   };
 
   const filteredData = useMemo(() => teacherData.filter(t =>
@@ -191,117 +118,118 @@ export default function TableTeacher() {
   ), [teacherData, nameFilter, classFilter]);
 
   const columns = [
-    { name: 'ID', selector: row => row.id, sortable: true, width: '70px' },
+    { name: 'ID', selector: row => row.id, width: '60px' },
     {
       name: 'Avatar',
       cell: row => (
         <img 
-          src={row.avatar || imgTeacher} // Utiliser l'avatar de la ligne ou l'image par défaut
-          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+          src={row.avatar || imgTeacher}
           alt="Avatar"
-          onError={(e) => {
-            e.target.src = imgTeacher; // Fallback en cas d'erreur de chargement
-          }}
+          className="rounded-circle"
+          style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+          onError={(e) => e.target.src = imgTeacher}
         />
       ),
       width: '80px'
     },
-    { name: 'Name / Nom', selector: row => row.name, sortable: true, wrap: true },
-    { name: 'Gender / Sexe', selector: row => row.gender , sortable: true },
-    { name: 'Class / Classe', selector: row => row.class , sortable: true },
-    { name: 'Subject / Matière', selector: row => row.subject , sortable: true },
-    { name: 'Phone / Tel.', selector: row => row.phone , sortable: true },
-    { name: 'Hourly Rate / Taux Horaire', selector: row => row.hourly_rate , sortable: true, format: row => `${row.hourly_rate}DH` },
+    { name: 'Name', selector: row => row.name, wrap: true, grow: 2 },
+    { name: 'Gender', selector: row => row.gender },
+    { name: 'Class', selector: row => row.class, grow: 2 },
+    { name: 'Subject', selector: row => row.subject },
+    { name: 'Phone', selector: row => row.phone,wrap: true,},
     {
-      name: 'Status',
-      sortable: true,
-      cell: row => (
-        <div className="d-flex flex-column align-items-center">
-          <button 
-            onClick={() => toggleActive(row.id, row.active)} 
-            className="btn btn-sm position-relative" 
-            style={{ 
-              backgroundColor: row.active ? 'rgba(25, 135, 84, 0.1)' : 'rgba(108, 117, 125, 0.1)', 
-              borderRadius: '20px',
-              border: row.active ? '1px solid rgba(25, 135, 84, 0.2)' : '1px solid rgba(108, 117, 125, 0.2)',
-              padding: '8px 12px',
-              minWidth: '90px'
-            }}
-            title={row.active ? "Click to deactivate" : "Click to activate"}
-          >
-            <div className="d-flex align-items-center justify-content-center gap-2"></div>
-            {row.active
-              ? <MdToggleOn color="green" size={22} />
-              : <MdToggleOff color="gray" size={22} />
-            }
-            <span style={{ fontSize: '14px', fontWeight: 'medium', color: row.active ? '#198754' : '#6c757d' }}>
-              {row.active ? 'Active' : 'Inactive'}
-            </span>
-          </button>
-        </div>
-      )
+      name: 'Hourly Rate',
+      selector: row => row.hourly_rate,
+      format: row => `${row.hourly_rate} DH`
     },
     {
-      name: 'Action',
+      name: 'Status',
       cell: row => (
-        <div className="actions d-flex gap-2 justify-content-center">
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }}
+          onClick={() => toggleActive(row.id, row.active)}
+          className="btn btn-light d-flex align-items-center gap-2"
+          style={{
+            border: row.active ? '1px solid green' : '1px solid gray',
+            borderRadius: '20px',
+            backgroundColor: row.active ? '#e9fbe9' : '#f0f0f0'
+          }}
+        >
+          {row.active ? <MdToggleOn color="green" size={22} /> : <MdToggleOff size={22} />}
+          <span style={{ fontWeight: '500', color: row.active ? 'green' : 'gray' }}>
+            {row.active ? 'Active' : 'Inactive'}
+          </span>
+        </motion.button>
+      ),
+      width: '160px'
+    },
+    {
+      name: 'Actions',
+      cell: row => (
+        <div className="d-flex gap-2 justify-content-center">
           <Link to={`${getRolePath()}/teacher/details/${row.id}`}>
-            <button className="btn btn-sm btn-outline-primary" title="View Details">
-              <FaEye size={14} />
-            </button>
+            <motion.button whileHover={{ scale: 1.1 }} className="btn btn-sm btn-outline-primary"><FaEye /></motion.button>
           </Link>
           <Link to={`${getRolePath()}/teacher/edit/${row.id}`}>
-            <button className="btn btn-sm btn-outline-warning" title="Edit">
-              <BsFillPencilFill size={14} />
-            </button>
+            <motion.button whileHover={{ scale: 1.1 }} className="btn btn-sm btn-outline-warning"><BsFillPencilFill /></motion.button>
           </Link>
-          <button onClick={() => deleteTeacher(row.id)} className="btn btn-sm btn-outline-danger" title="Delete">
-            <MdDelete size={16} />
-          </button>
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => deleteTeacher(row.id)} className="btn btn-sm btn-outline-danger">
+            <MdDelete />
+          </motion.button>
         </div>
       ),
-      width: '150px'
+      width: '160px'
     }
   ];
 
   return (
-    <div>
-      <div className="d-flex justify-content-around align-items-center gap-3">
+    <motion.div 
+      initial={{ opacity: 0, y: 30 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.6 }}
+    >
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
         <input
           className="form-control"
-          style={{ borderRadius: '8px' }}
-          placeholder="Search by Name"
+          style={{ maxWidth: '240px' }}
+          placeholder="Search by name"
           value={nameFilter}
           onChange={e => setNameFilter(e.target.value)}
         />
         <input
           className="form-control"
-          style={{ borderRadius: '8px' }}
-          placeholder="Search by Class"
+          style={{ maxWidth: '240px' }}
+          placeholder="Search by class"
           value={classFilter}
           onChange={e => setClassFilter(e.target.value)}
         />
-        <button className="btn btn-success d-flex align-items-center gap-2" onClick={handleExportCSV}>
-          <BsDownload /> Export CSV
-        </button>
-        <button className="btn btn-success d-flex align-items-center gap-2" onClick={handleExportExcel}>
-          <BsDownload /> Export Excel
-        </button>
+        <motion.button whileHover={{ scale: 1.05 }} onClick={handleExportCSV} className="btn btn-outline-success d-flex align-items-center gap-2">
+          <BsDownload /> CSV
+        </motion.button>
+        <motion.button whileHover={{ scale: 1.05 }} onClick={handleExportExcel} className="btn btn-outline-success d-flex align-items-center gap-2">
+          <BsDownload /> Excel
+        </motion.button>
         <Link to={`${getRolePath()}/teacher/add`}>
-          <button className="btn btn-danger">Add Teacher</button>
+          <motion.button whileHover={{ scale: 1.05 }} className="btn btn-danger">Add Teacher</motion.button>
         </Link>
       </div>
 
       <DataTable
         columns={columns}
         data={filteredData}
-        fixedHeader
         pagination
+        fixedHeader
+        className="shadow-sm"
         progressPending={pending}
-        className="mt-4"
-        customStyles={tableCustomStyles}
-        progressComponent={<Ellipsis size={64} color='#D9A602' />}
+        customStyles={{
+          table: { style: { borderRadius: '10px', overflow: 'hidden' } },
+          headCells: { style: { fontSize: '15px', fontWeight: '600' } },
+          rows: { style: { minHeight: '60px' } },
+          cells: { style: { fontSize: '14px' } },
+        }}
+        progressComponent={<Ellipsis size={64} color="#D9A602" />}
       />
-    </div>
+    </motion.div>
   );
 }
