@@ -26,7 +26,14 @@ class Parent_ extends Model
         'adresse',
         'telephone',
         'nbenfants',
+        'relationship',
+        'archived',
+        'emergency_contact'
     ];
+    public function scopeActive($query)
+    {
+        return $query->where('archived', false);
+    }
     public function etudiant()
     {
         return $this->hasMany(Etudiant::class, 'parent_id', 'id');

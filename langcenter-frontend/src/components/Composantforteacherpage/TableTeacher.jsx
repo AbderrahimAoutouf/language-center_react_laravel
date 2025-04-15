@@ -22,7 +22,9 @@ export default function TableTeacher() {
 
   const getRolePath = () => {
     if (!user) return "";
-    return user.role === "director" ? "/director" : "/secretary";
+    if (user.role === "admin") return "";
+    if (user.role === "director") return "/director";
+    return "/secretary";
   };
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export default function TableTeacher() {
         setTeacherData(data.map(item => ({
           id: item.id,
           avatar: item.avatar,
-          active: item.active || null,
+          active: item.active ?? false,
           name: `${item.first_name} ${item.last_name}`,
           gender: item.gender,
           class: item.classes?.length ? item.classes.map(c => c.name).join(', ') : 'No class',
@@ -80,7 +82,7 @@ export default function TableTeacher() {
     }
   };
 
-  const toggleActive = async (id, status) => {
+  const toggleActive = async (id) => {
     try {
       const res = await axios.patch(`api/teachers/${id}/toggle-active`);
       const updatedStatus = res.data?.data?.active;
@@ -104,8 +106,8 @@ export default function TableTeacher() {
       setNotification("Teacher deleted successfully");
       setVariant("success");
     } catch (err) {
-      setNotification(err.response?.status === 400 ? 
-        "Cannot delete: Teacher is assigned to classes." : 
+      setNotification(err.response?.status === 400 ?
+        "Cannot delete: Teacher is assigned to classes." :
         "Delete failed"
       );
       setVariant("danger");
@@ -122,7 +124,7 @@ export default function TableTeacher() {
     {
       name: 'Avatar',
       cell: row => (
-        <img 
+        <img
           src={row.avatar || imgTeacher}
           alt="Avatar"
           className="rounded-circle"
@@ -136,7 +138,7 @@ export default function TableTeacher() {
     { name: 'Gender', selector: row => row.gender },
     { name: 'Class', selector: row => row.class, grow: 2 },
     { name: 'Subject', selector: row => row.subject },
-    { name: 'Phone', selector: row => row.phone,wrap: true,},
+    { name: 'Phone', selector: row => row.phone, wrap: true },
     {
       name: 'Hourly Rate',
       selector: row => row.hourly_rate,
@@ -148,7 +150,7 @@ export default function TableTeacher() {
         <motion.button
           whileTap={{ scale: 0.9 }}
           whileHover={{ scale: 1.05 }}
-          onClick={() => toggleActive(row.id, row.active)}
+          onClick={() => toggleActive(row.id)}
           className="btn btn-light d-flex align-items-center gap-2"
           style={{
             border: row.active ? '1px solid green' : '1px solid gray',
@@ -174,62 +176,77 @@ export default function TableTeacher() {
           <Link to={`${getRolePath()}/teacher/edit/${row.id}`}>
             <motion.button whileHover={{ scale: 1.1 }} className="btn btn-sm btn-outline-warning"><BsFillPencilFill /></motion.button>
           </Link>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => deleteTeacher(row.id)} className="btn btn-sm btn-outline-danger">
+          <motion.button whileHover={{ scale: 1.1 }} className="btn btn-sm btn-outline-danger" onClick={() => deleteTeacher(row.id)}>
             <MdDelete />
           </motion.button>
         </div>
       ),
-      width: '160px'
+      width: '200px'
     }
   ];
 
+  const tableCustomStyles = {
+    headCells: {
+      style: {
+        fontSize: '16px',
+        fontWeight: 'bold',
+        justifyContent: 'center',
+        backgroundColor: '#f5f5f5'
+      }
+    },
+    cells: {
+      style: {
+        fontSize: '15px',
+        justifyContent: 'center'
+      }
+    }
+  };
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 30 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      transition={{ duration: 0.6 }}
-    >
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-        <input
-          className="form-control"
-          style={{ maxWidth: '240px' }}
-          placeholder="Search by name"
-          value={nameFilter}
-          onChange={e => setNameFilter(e.target.value)}
-        />
-        <input
-          className="form-control"
-          style={{ maxWidth: '240px' }}
-          placeholder="Search by class"
-          value={classFilter}
-          onChange={e => setClassFilter(e.target.value)}
-        />
-        <motion.button whileHover={{ scale: 1.05 }} onClick={handleExportCSV} className="btn btn-outline-success d-flex align-items-center gap-2">
-          <BsDownload /> CSV
-        </motion.button>
-        <motion.button whileHover={{ scale: 1.05 }} onClick={handleExportExcel} className="btn btn-outline-success d-flex align-items-center gap-2">
-          <BsDownload /> Excel
-        </motion.button>
-        <Link to={`${getRolePath()}/teacher/add`}>
-          <motion.button whileHover={{ scale: 1.05 }} className="btn btn-danger">Add Teacher</motion.button>
-        </Link>
+    <div>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <div className="d-flex gap-2">
+          <input
+            className="form-control"
+            style={{ maxWidth: '180px' }}
+            type="text"
+            placeholder="Search by Name"
+            value={nameFilter}
+            onChange={(e) => setNameFilter(e.target.value)}
+          />
+          <input
+            className="form-control"
+            style={{ maxWidth: '180px' }}
+            type="text"
+            placeholder="Search by Class"
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+          />
+        </div>
+        <div className="d-flex gap-2">
+          <button className="btn btn-outline-success" onClick={handleExportCSV}>
+            Export CSV <BsDownload />
+          </button>
+          <button className="btn btn-outline-info" onClick={handleExportExcel}>
+            Export Excel <BsDownload />
+          </button>
+          <Link to={`${getRolePath()}/teacher/add`}>
+            <button className="btn btn-danger">Add Teacher</button>
+          </Link>
+        </div>
       </div>
 
       <DataTable
         columns={columns}
         data={filteredData}
-        pagination
         fixedHeader
-        className="shadow-sm"
+        pagination
         progressPending={pending}
-        customStyles={{
-          table: { style: { borderRadius: '10px', overflow: 'hidden' } },
-          headCells: { style: { fontSize: '15px', fontWeight: '600' } },
-          rows: { style: { minHeight: '60px' } },
-          cells: { style: { fontSize: '14px' } },
-        }}
-        progressComponent={<Ellipsis size={64} color="#D9A602" />}
+        progressComponent={<Ellipsis size={64} color='#D60A0B' sizeUnit='px' />}
+        customStyles={tableCustomStyles}
+        highlightOnHover
+        responsive
       />
-    </motion.div>
+    </div>
   );
 }

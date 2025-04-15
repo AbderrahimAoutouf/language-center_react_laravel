@@ -32,6 +32,7 @@ class Etudiant extends Model
         'isActive',
         'parent_cin',
         'age_group',
+        'emergency_contact'
     ];
 
     public function parent_()

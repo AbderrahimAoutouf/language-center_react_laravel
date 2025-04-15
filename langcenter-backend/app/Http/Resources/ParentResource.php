@@ -26,6 +26,9 @@ class ParentResource extends JsonResource
             'telephone' => $this->telephone,
             'nb_enfant_inscrit' => $this->etudiant()->count(),
             'enfants' => $this->etudiant()->get(),
+            'relationship' => $this->relationship,
+            'archived' => $this->archived,
+            'emergency_contact' => $this->emergency_contact
         ];
     }
 }

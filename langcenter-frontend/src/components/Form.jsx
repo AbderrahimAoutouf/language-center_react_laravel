@@ -10,6 +10,8 @@ import axios from '../api/axios';
 import {useNavigate} from 'react-router-dom';
 import { UseStateContext } from '../context/ContextProvider';
 import countriesData from '../data/countries+states+cities.json';
+import AsyncSelect from 'react-select/async';
+import Alert from 'react-bootstrap/Alert';
 
 function FormC() {
   const navigate = useNavigate();
@@ -24,6 +26,10 @@ function FormC() {
   const {user,setNotification,setVariant} = UseStateContext();
   const [underAge,setUnderAge] = useState(false);
   const [total,setTotal] = useState(0);
+  const [parents, setParents] = useState([]);
+    const [selectedParent, setSelectedParent] = useState(null);
+    const [showParent, setShowParent] = useState(true);
+  const [selectedExistingParent, setSelectedExistingParent] = useState(null);
   let x = ""
   if (user && user.role==='admin')
   {
@@ -56,44 +62,80 @@ useEffect(() => {
   });
 }, []);
 
+
+useEffect(() => {
+  axios.get('/api/parents')
+      .then(res => setParents(res.data));
+}, []);
+
+// Gestion de la recherche
+const searchParents = async (input) => {
+  const res = await axios.post('/api/parents/search', { q: input });
+  return res.data;
+};
+
+// Archiver un parent
+const archiveParent = (parentId) => {
+  axios.patch(`/api/parents/${parentId}/archive`)
+      .then(() => {
+          // Rafraîchir la liste
+      });
+};
+
+
   // Fetch available tests from the database
   useEffect(() => {
     axios.get('/api/tests').then((res) => {
-      console.log("Full API response:", res);
-      console.log("Data structure:", res.data);
+      console.log("Tests API response:", res.data); // Log actual response structure
       
-      // Then adjust how you access the data based on the actual structure
-      if (res.data && res.data.data && res.data.data.length > 0 && res.data.data[0].price !== undefined) {
-        setTestPrice(+res.data.data[0].price);
-      } else {
-        // Try to find price in a different location based on actual response
-        // Example: maybe it's directly in res.data instead of res.data.data
-        const priceValue = findPriceInResponse(res);
-        setTestPrice(priceValue || 0);
-        
-        if (!priceValue) {
-          console.warn("Test price data not available or not in expected format");
+      // First check if response contains direct array of tests
+      if (Array.isArray(res.data)) {
+        const firstTest = res.data[0];
+        if (firstTest?.price !== undefined) {
+          setTestPrice(Number(firstTest.price));
         }
+        setTests(res.data);
       }
-      
-      // Also update how you set the tests state
-      setTests(Array.isArray(res.data.data) ? res.data.data : []);
+      // Then check for nested data array
+      else if (res.data?.data && Array.isArray(res.data.data)) {
+        const firstTest = res.data.data[0];
+        if (firstTest?.price !== undefined) {
+          setTestPrice(Number(firstTest.price));
+        }
+        setTests(res.data.data);
+      }
+      else {
+        console.warn("Unexpected tests response structure:", res.data);
+        setTestPrice(0);
+        setTests([]);
+      }
     }).catch(error => {
       console.error("Error fetching tests:", error);
+      setTestPrice(0);
+      setTests([]);
     });
   }, []);
   
   // Helper function to find price in different places in the response
   const findPriceInResponse = (response) => {
-    if (response.data && Array.isArray(response.data) && response.data[0]?.price) {
-      return +response.data[0].price;
+    // Check multiple possible response structures
+    const testsArray = 
+      response.data || // Direct array
+      response.data?.data || // Nested data array
+      response.data?.tests || // Tests property
+      [];
+    
+    if (testsArray.length > 0 && testsArray[0].price) {
+      return Number(testsArray[0].price);
     }
-    if (response.data && response.data.price) {
-      return +response.data.price;
+    if (response.data?.price) {
+      return Number(response.data.price);
     }
-    // Add other possible locations based on what you see in the console logs
     return null;
-  }
+  };
+
+
+
   useEffect(() => {
       setCountries(countriesData);
     }, []);
@@ -176,7 +218,9 @@ useEffect(() => {
       guardLName: yup.string(),
       guardCin: yup.string().min(2,'to short to be a valid CIN').max(8,'to long to be a valid CIN'),
       guardEmail: yup.string().email('invalid Email'),
-      guardPhone: yup.string().min(9,'to short to be a valid phone number'),
+      guardPhone: yup.string().min(9,'to short to be a valid phone number').required('Required for minors'),
+      emergencyContact: yup.string().required('Emergency contact is required'),
+    parentRelationship: yup.string().required('Relationship is required'),
       guardGender: yup.string(),
       guardBirthDate: yup.date(),
       guardAddress: yup.string(),
@@ -249,18 +293,23 @@ useEffect(() => {
         console.error("Invalid response structure:", response); }
     } catch (error) {
       console.log(error);
-      if (error.response && error.response.data && error.response.data.errors) {
+      if (error.response?.data) {
+        const serverErrors = error.response.data;
+        // Handle different server error formats
+        const fieldErrors = serverErrors.errors || serverErrors.message || serverErrors;
         formik.setErrors({
-          ...error.response.data.errors,
-          phone: error.response.data.errors.telephone,
-          guardPhone: error.response.data.errors.parent_telephone,
-          guardCin: error.response.data.errors.parent_cin,
-          guardEmail: error.response.data.errors.parent_email
+          ...fieldErrors,
+          phone: fieldErrors.telephone,
+          guardPhone: fieldErrors.parent_telephone,
+          guardCin: fieldErrors.parent_cin,
+          guardEmail: fieldErrors.parent_email
         });
       }
-      setNotification("Failed to add student");
+      setNotification("Failed to add student: " + (error.response?.data?.message || "Validation error"));
       setVariant("danger");
+      return; // Prevent further execution
     }
+
     console.log(response.data.data.id);
     const etudiantId = response.data.data.id;
         let inscriptionData = {
@@ -856,7 +905,7 @@ useEffect(() => {
               type="number"
               placeholder="test fees"
               name="testfees"
-              value={testPrice}
+              value={testPrice || 0}
               disabled
               isInvalid={formik.touched.testFees && formik.errors.testFees}
               />

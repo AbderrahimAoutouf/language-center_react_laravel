@@ -71,6 +71,9 @@ Route::post('/teachers/{teacher}/avatar', [TeacherController::class, 'updateAvat
 Route::get('/parents', 'App\Http\Controllers\ParentController@index');
 Route::put('parents/{parent_}', 'App\Http\Controllers\ParentController@update');
 Route::get('/parents/{parent_}', 'App\Http\Controllers\ParentController@show');
+Route::apiResource('parents', ParentController::class);
+Route::post('/parents/search', [ParentController::class, 'search']);
+Route::patch('/parents/{parent}/archive', [ParentController::class, 'archive']);
 
 
 // Timetable routes

@@ -144,7 +144,6 @@ export default function EnseignantDetails() {
                     cin: data.cin,
                     hourly_rate: `${data.hourly_rate}DH`,
                     created_at: data.created_at,
-                    avatar: data.avatar || null,  // Add this line
                     updated_at: data.updated_at,
                     avatar: res.data.avatar,
                 });

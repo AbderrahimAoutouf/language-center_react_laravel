@@ -63,4 +63,21 @@ class ParentController extends Controller
 
             return response()->json(['message' => 'Parent updated successfully']);
     }
+    /**
+     * 
+     */
+    public function search(Request $request)
+{
+    return Parent_::where('nom', 'like', '%'.$request->q.'%')
+        ->orWhere('prenom', 'like', '%'.$request->q.'%')
+        ->active()
+        ->limit(10)
+        ->get();
+}
+
+public function archive(Parent_ $parent)
+{
+    $parent->update(['archived' => !$parent->archived]);
+    return response()->json(['message' => 'Parent archivé/désarchivé']);
+}
 }
