@@ -93,6 +93,9 @@ export default function TableTeacher() {
 
       setNotification(`Teacher status ${updatedStatus ? 'activated' : 'deactivated'}`);
       setVariant(updatedStatus ? "success" : "warning");
+      setTimeout(() => {
+        setNotification('');
+      }, 3000);
     } catch {
       setNotification("Failed to update status");
       setVariant("danger");
