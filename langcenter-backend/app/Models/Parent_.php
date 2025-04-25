@@ -26,7 +26,7 @@ class Parent_ extends Model
         'adresse',
         'telephone',
         'nbenfants',
-        'relationship',
+        //'relationship',
         'archived',
         'emergency_contact'
     ];

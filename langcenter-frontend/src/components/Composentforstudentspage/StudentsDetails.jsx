@@ -70,6 +70,9 @@ export default function StudentsDetails() {
             });
             setNotification("Student data refreshed successfully");
             setVariant("success");
+            setTimeout(() => {
+                setNotification('');
+              }, 3000);
         } catch (err) {
             console.error("Error refreshing student data:", err);
             setNotification("Failed to refresh student data");

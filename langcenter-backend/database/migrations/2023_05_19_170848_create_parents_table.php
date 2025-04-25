@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('email', 254)->unique()->nullable();
             $table->string('adresse', 254)->nullable();
             $table->string('telephone', 254)->nullable();
-            $table->string('relationship')->default('tuteur');
+            //$table->string('relationship')->default('tuteur');
             $table->boolean('archived')->default(false);
             $table->string('emergency_contact')->nullable();
         });

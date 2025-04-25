@@ -172,6 +172,7 @@ const archiveParent = (parentId) => {
         adult: ``,
         email: ``,
         phone: ``,
+        emergencyContact: ``,
         guardfName:``,
         guardLName: ``,
         guardGender: ``,
@@ -220,7 +221,7 @@ const archiveParent = (parentId) => {
       guardEmail: yup.string().email('invalid Email'),
       guardPhone: yup.string().min(9,'to short to be a valid phone number').required('Required for minors'),
       emergencyContact: yup.string().required('Emergency contact is required'),
-    parentRelationship: yup.string().required('Relationship is required'),
+    //parentRelationship: yup.string().required('Relationship is required'),
       guardGender: yup.string(),
       guardBirthDate: yup.date(),
       guardAddress: yup.string(),
@@ -265,6 +266,7 @@ const archiveParent = (parentId) => {
       sexe: formik.values.gender,
       email: formik.values.email,
       telephone: formik.values.phone,
+      emergency_contact: formik.values.emergencyContact,
       adresse: `${formik.values.street}, ${formik.values.city}, ${formik.values.state}, ${formik.values.country}`,
       adulte: formik.values.adult,
       underAge: false,
@@ -627,6 +629,20 @@ const archiveParent = (parentId) => {
             {formik.errors.phone}
             </Form.Control.Feedback>
             </Form.Group>
+            <Form.Group as={Col} md="3" sm="6" xs="12" className="position-relative">
+  <Form.Label>Emergency Contact <span className='text-danger'>*</span></Form.Label>
+  <Form.Control
+    type="tel"
+    placeholder="+(212) ..."
+    name="emergencyContact"
+    {...formik.getFieldProps('emergencyContact')}
+    isInvalid={formik.touched.emergencyContact && formik.errors.emergencyContact}
+  />
+  <Form.Control.Feedback type="invalid" tooltip>
+    {formik.errors.emergencyContact}
+  </Form.Control.Feedback>
+</Form.Group>
+
             </Row>
            
           <Row className='mb-3'>

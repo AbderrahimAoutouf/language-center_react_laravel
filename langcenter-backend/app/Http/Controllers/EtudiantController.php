@@ -42,7 +42,7 @@ class EtudiantController extends Controller
             'parent_adresse' => 'string|nullable',
             'parent_telephone' => 'string|max:13|regex:/^([0-9\s\-\+\(\)]*)$/|min:10|unique:parents,telephone|nullable',
             'emergency_contact' => 'required|string',
-            'parent_relationship' => 'required|in:père,mère,tuteur,frère,sœur',
+            //'parent_relationship' => 'required|in:père,mère,tuteur,frère,sœur',
         ]);
         $etudiant = new Etudiant();
         $etudiant->nom = $data['nom'];
@@ -81,13 +81,13 @@ class EtudiantController extends Controller
                 $newParent->adresse = $request->parent_adresse;
                 $newParent->telephone = $request->parent_telephone;
                 $newParent->date_naissance = $request->parent_date_naissance;
-                $newParent->relationship = $request->parent_relationship;
+                //$newParent->relationship = $request->parent_relationship;
                 $newParent->archived = $request->archived ?? false;
                 $newParent->save();
                 $etudiant->parent_()->associate($newParent);
             }
         } 
-        $etudiant->emergency_contact = $data['emergency_contact'];
+        //$etudiant->emergency_contact = $data['emergency_contact'];
     $etudiant->save();
         
         return new EtudiantResource($etudiant);
@@ -119,8 +119,8 @@ class EtudiantController extends Controller
             'telephone' => 'required|string|max:13|regex:/^([0-9\s\-\+\(\)]*)$/|min:10|unique:etudiants,telephone,' . $etudiant->id,
             'parent_cin' => 'string',
             'parent_telephone' => 'required|string|max:13|unique:parents,telephone',
-            'emergency_contact' => 'required|string|min:3',
-            'parent_relationship' => 'required|in:père,mère,tuteur,frère,sœur', 
+            //'emergency_contact' => 'required|string|min:3',
+            //'parent_relationship' => 'required|in:père,mère,tuteur,frère,sœur', 
         ]);
         if ($request->has('underAge') && $request->underAge == true) {
             $parent = Parent_::where('cin', $request->parent_cin)->first();
