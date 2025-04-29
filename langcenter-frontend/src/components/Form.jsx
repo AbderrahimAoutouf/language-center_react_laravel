@@ -83,6 +83,7 @@ const archiveParent = (parentId) => {
 };
 
 
+
   // Fetch available tests from the database
   useEffect(() => {
     axios.get('/api/tests').then((res) => {
@@ -181,6 +182,7 @@ const archiveParent = (parentId) => {
         guardPhone: ``,
         guardBirthDate: ``,
         guardAddress: ``,
+        parentRelationship: ``,
         courseName: ``,
         courseFeesPaid: ``,
         negotiatedPrice: ``,
@@ -221,7 +223,7 @@ const archiveParent = (parentId) => {
       guardEmail: yup.string().email('invalid Email'),
       guardPhone: yup.string().min(9,'to short to be a valid phone number').required('Required for minors'),
       emergencyContact: yup.string().required('Emergency contact is required'),
-    //parentRelationship: yup.string().required('Relationship is required'),
+      parentRelationship: yup.string().required('Relationship is required'),
       guardGender: yup.string(),
       guardBirthDate: yup.date(),
       guardAddress: yup.string(),
@@ -240,6 +242,8 @@ const archiveParent = (parentId) => {
     console.log("wewe are here");
 }
 });
+
+
 
   // Find the course fees based on the class id
   const findCoursFees = (classId) => {
@@ -267,6 +271,7 @@ const archiveParent = (parentId) => {
       email: formik.values.email,
       telephone: formik.values.phone,
       emergency_contact: formik.values.emergencyContact,
+      parent_relationship : formik.values.parentRelationship,
       adresse: `${formik.values.street}, ${formik.values.city}, ${formik.values.state}, ${formik.values.country}`,
       adulte: formik.values.adult,
       underAge: false,
@@ -375,6 +380,57 @@ const archiveParent = (parentId) => {
     }, 7000);
     navigate(`${x}/student`);
   }
+
+  // Ajouter ce useEffect pour détecter les changements sur le CIN ou téléphone
+useEffect(() => {
+  const fetchParent = async () => {
+    try {
+      if ((formik.values.guardCin?.length >= 2) || (formik.values.guardPhone?.length >= 9)) {
+        const res = await axios.post('/api/parents/search', {
+          cin: formik.values.guardCin,
+          telephone: formik.values.guardPhone
+        });
+
+        if (res.data.length > 0) {
+          const parent = res.data[0];
+          formik.setValues({
+            ...formik.values,
+            guardfName: parent.prenom,
+            guardLName: parent.nom,
+            guardGender: parent.sexe,
+            guardEmail: parent.email,
+            guardBirthDate: parent.date_naissance,
+            guardAddress: parent.adresse,
+            parentRelationship: parent.relationship,
+            
+            // Découper l'adresse existante
+            country: parent.adresse?.split(', ')[3] || '',
+            state: parent.adresse?.split(', ')[2] || '',
+            city: parent.adresse?.split(', ')[1] || '',
+            street: parent.adresse?.split(', ')[0] || ''
+          });
+
+          // Désactiver l'édition après remplissage
+          setShowParent(false);
+          setNotification("Parent existant trouvé !");
+          setVariant("success");
+          setTimeout(() => {
+            setNotification(null);
+          }, 3000);
+        }
+      }
+    } catch (error) {
+      console.error("Parent search error:", error);
+    }
+  };
+
+  // Délai pour éviter des requêtes excessives
+  const delayDebounce = setTimeout(() => {
+    if (underAge) fetchParent();
+  }, 500);
+
+  return () => clearTimeout(delayDebounce);
+}, [formik.values.guardCin, formik.values.guardPhone, underAge]);
 
   // calculate the total fees
   //+findCoursFees(formik.values.class) * (1-((formik.values.discount == 'custom' ? formik.values.customDiscount : formik.values.discount) /100))
@@ -647,6 +703,12 @@ const archiveParent = (parentId) => {
            
           <Row className='mb-3'>
           <h3>Parents</h3>
+          <Button 
+  variant="link" 
+  onClick={() => setShowParent(!showParent)}
+  className="mb-3"
+> {showParent ? 'Masquer' : 'Modifier les informations parentales'}
+</Button>
           <Form.Group
             as={Col}
             md="3"
@@ -662,7 +724,7 @@ const archiveParent = (parentId) => {
               placeholder="first name"
               {...formik.getFieldProps('guardfName')}
               isInvalid={formik.touched.guardfName && formik.errors.guardfName}
-              disabled={!underAge}
+              disabled={!showParent || !underAge}
             />
             <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.guardfName}</Form.Control.Feedback>
           </Form.Group>
@@ -681,7 +743,7 @@ const archiveParent = (parentId) => {
                 placeholder="last name"
                 {...formik.getFieldProps('guardLName')}
                 isInvalid={formik.touched.guardLName && formik.errors.guardLName}
-                disabled={!underAge}
+                disabled={!showParent || !underAge}
                 />
               <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.guardLName}</Form.Control.Feedback>
             </Form.Group>
@@ -694,7 +756,7 @@ const archiveParent = (parentId) => {
                 name="guardcin"
                 {...formik.getFieldProps('guardCin')}
                 isInvalid={formik.touched.guardCin && formik.errors.guardCin}
-                disabled={!underAge}
+                disabled={!showParent || !underAge}
                 />
                 <Form.Control.Feedback type="invalid" tooltip>
                 {formik.errors.guardCin}
@@ -709,7 +771,7 @@ const archiveParent = (parentId) => {
                   name="guardGender"
                   {...formik.getFieldProps('guardGender')}
                   isInvalid={formik.touched.guardGender && formik.errors.guardGender}
-                  disabled={!underAge}
+                  disabled={!showParent || !underAge}
                   >
                     <option value=''>Choose Gender</option>
                     <option value='male'>Male</option>
@@ -728,7 +790,7 @@ const archiveParent = (parentId) => {
             name="guardemail"
             {...formik.getFieldProps('guardEmail')}
             isInvalid={formik.touched.guardEmail && formik.errors.guardEmail}
-            disabled={!underAge}
+            disabled={!showParent || !underAge}
             />
             <Form.Control.Feedback type="invalid" tooltip>
             {formik.errors.guardEmail}
@@ -743,7 +805,7 @@ const archiveParent = (parentId) => {
             name="guardphone"
             {...formik.getFieldProps('guardPhone')}
             isInvalid={formik.touched.guardPhone && formik.errors.guardPhone}
-            disabled={!underAge}
+            disabled={!showParent || !underAge}
             />
             <Form.Control.Feedback type="invalid" tooltip>
             {formik.errors.guardPhone}
@@ -862,12 +924,41 @@ const archiveParent = (parentId) => {
                 name="guarddob"
                 {...formik.getFieldProps('guardBirthDate')}
                 isInvalid={formik.touched.guardBirthDate && formik.errors.guardBirthDate}
-                disabled={!underAge}
+                disabled={!showParent || !underAge}
                 />
                 <Form.Control.Feedback type="invalid" tooltip>
                 {formik.errors.guardBirthDate}
                 </Form.Control.Feedback>
                 </Form.Group>
+                <Form.Group
+  as={Col}
+  md="3"
+  sm="6"
+  xs="12"
+  controlId="validationFormik1"
+  className='position-relative'
+>
+  <Form.Label>Relation avec l'étudiant<span className='text-danger'>*</span></Form.Label>
+  <Form.Select
+    component="select"
+    id="parentRelationship"
+    name="parentRelationship"
+    {...formik.getFieldProps('parentRelationship')}
+    isInvalid={formik.touched.parentRelationship && formik.errors.parentRelationship}
+    disabled={!showParent || !underAge}
+  >
+    <option value=''>Choisir la relation</option>
+    <option value='père'>Père</option>
+    <option value='mère'>Mère</option>
+    <option value='frère'>Frère</option>
+    <option value='sœur'>Sœur</option>
+    <option value='tuteur'>Tuteur</option>
+    <option value='autre'>Autre</option>
+  </Form.Select>
+  <Form.Control.Feedback type="invalid" tooltip>
+    {formik.errors.parentRelationship}
+  </Form.Control.Feedback>
+</Form.Group>
           </Row>
         :
         <>

@@ -7,8 +7,9 @@ import { Link, Navigate,useNavigate } from "react-router-dom";
 import axios from "../../api/axios";
 import { Ellipsis } from 'react-awesome-spinners'
 import { UseStateContext } from "../../context/ContextProvider";
+import Edit from './Edit';
 
-export default function index() {
+export default function Index() {
     const tableCustomStyles = {
     headCells: {
         style: {
