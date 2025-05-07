@@ -48,6 +48,8 @@ export default function AddFeesT()
         const [hoursData, setHoursData] = useState([]);
         const [amountData, setAmountData] = useState([]);
         const [hourlyRateData, setHourlyRateData] = useState([]);
+        const [contractType, setContractType] = useState('hourly');
+        const [monthlySalary, setMonthlySalary] = useState(0);
         useEffect(
             () => {
                 const getTeacherData = async() => {
@@ -58,26 +60,38 @@ export default function AddFeesT()
                 
             }
             ,[])
-            useEffect(
-                () => {
-                    const dateData = {
-                        month:formik.values.month,
-                        year:formik.values.year,
-                    }
-                    const getHoursData = async() => {
-                    const response = await axios.post(`/api/hours/${formik.values.name}`,dateData);
+            useEffect(() => {
+                const dateData = {
+                    month: formik.values.month,
+                    year: formik.values.year,
+                }
+                
+                const getHoursData = async() => {
+                    const response = await axios.post(`/api/hours/${formik.values.name}`, dateData);
                     setHoursData(response.data);
                 };
-                getHoursData();
-                teacherData.map((teacher) => 
-                {
-                    if(teacher.id == formik.values.name)
-                    {
-                        setHourlyRateData(teacher.hourly_rate);
+                
+                const getTeacherDetails = async() => {
+                    if (formik.values.name) {
+                        const teacherFound = teacherData.find(teacher => teacher.id == formik.values.name);
+                        if (teacherFound) {
+                            setHourlyRateData(teacherFound.hourly_rate);
+                            setContractType(teacherFound.contract_type);
+                            setMonthlySalary(teacherFound.monthly_salary);
+                            
+                            // Auto-calculate amount based on contract type
+                            if (teacherFound.contract_type === 'monthly') {
+                                formik.setFieldValue('amount', teacherFound.monthly_salary);
+                            } else {
+                                // For hourly contract, get hours first
+                                getHoursData();
+                            }
+                        }
                     }
-                })
-
-            },[formik.values.name,formik.values.month,formik.values.year])
+                };
+                
+                getTeacherDetails();
+            }, [formik.values.name, formik.values.month, formik.values.year]);
             
             return(
         <div>
@@ -168,24 +182,43 @@ export default function AddFeesT()
             </Form>
             <div className='d-flex flex-row-reverse me-5'>  
                 {/* payment table containe paid amount grand total ,worked hours */}
-                <Table striped bordered hover className='w-25' >
-                    <thead>
-                        <tr>
-                        <th>Worked hours</th>
-                        <td>{hoursData}</td>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                        <th>Hourly rate</th>
-                        <td>{hourlyRateData}</td>
-                        </tr>
-                        <tr>
-                        <th>month salary</th>
-                        <td>{hoursData * hourlyRateData}</td>
-                        </tr>
-                    </tbody>
-                </Table>
+                <Table striped bordered hover className='w-25'>
+    <thead>
+        <tr>
+            <th>Contract Type</th>
+            <td>{contractType === 'monthly' ? 'Monthly (Permanent)' : 'Hourly'}</td>
+        </tr>
+    </thead>
+    <tbody>
+        {contractType === 'hourly' ? (
+            <>
+                <tr>
+                    <th>Worked hours</th>
+                    <td>{hoursData}</td>
+                </tr>
+                <tr>
+                    <th>Hourly rate</th>
+                    <td>{hourlyRateData}</td>
+                </tr>
+                <tr>
+                    <th>Monthly salary</th>
+                    <td>{hoursData * hourlyRateData}</td>
+                </tr>
+            </>
+        ) : (
+            <>
+                <tr>
+                    <th>Fixed monthly salary</th>
+                    <td>{monthlySalary}</td>
+                </tr>
+                <tr>
+                    <th>Absences</th>
+                    <td>Check attendance records</td>
+                </tr>
+            </>
+        )}
+    </tbody>
+</Table>
             </div>
         </div>
     )

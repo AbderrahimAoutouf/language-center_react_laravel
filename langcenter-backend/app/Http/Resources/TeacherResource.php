@@ -30,6 +30,8 @@ class TeacherResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'avatar' => $this->avatar ? asset("storage/{$this->avatar}") : null,
+            'contract_type' => $this->contract_type,
+            'monthly_salary' => $this->monthly_salary,
         ];
     }
 }

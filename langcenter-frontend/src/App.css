@@ -233,11 +233,13 @@ body,
   max-height: 0;
   opacity: 0;
   transition: max-height 0.3s ease, opacity 0.3s ease;
+  display: none;
 }
 
 .dropdown-menu.show {
   max-height: 200px;
   opacity: 1;
+  display: block;
 }
 
 .dropdown-item {

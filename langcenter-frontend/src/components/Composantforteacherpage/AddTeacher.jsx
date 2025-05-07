@@ -58,6 +58,8 @@ export default function AddTeacher() {
       diploma: '',
       hourly_rate: '',
       speciality: '',
+      contract_type: 'hourly',
+      monthly_salary: '',
     },
     validationSchema: Yup.object({
       firstName: Yup.string().required('First name is required'),
@@ -72,8 +74,18 @@ export default function AddTeacher() {
       street: Yup.string().notRequired(),
       phone: Yup.string(),
       diploma: Yup.string().notRequired().nullable().matches(/^[a-zA-Z\s]*$/, 'Invalid diploma value'),
-      hourly_rate: Yup.number().notRequired(),
+      hourly_rate: Yup.number().when('contract_type', {
+        is: 'hourly',
+        then: () => Yup.number().required('Hourly rate is required for hourly contracts'),
+        otherwise: () => Yup.number().notRequired()
+      }),
       speciality: Yup.string().notRequired(),
+      contract_type: Yup.string().required('Contract type is required'),
+      monthly_salary: Yup.number().when('contract_type', {
+        is: 'monthly',
+        then: () => Yup.number().required('Monthly salary is required for permanent contracts'),
+        otherwise: () => Yup.number().notRequired()
+      }),
     }),
     onSubmit: (values) => {
       const formData = new FormData();
@@ -92,6 +104,9 @@ export default function AddTeacher() {
       formData.append('diploma', values.diploma && values.diploma !== 'Other' ? values.diploma : customDiploma);
       formData.append('hourly_rate', values.hourly_rate);
       formData.append('speciality', values.speciality);
+      formData.append('contract_type', values.contract_type);
+       if (values.contract_type === 'monthly') {
+        formData.append('monthly_salary', values.monthly_salary);}
 
       // Make POST request to add teacher
       axios.post('/api/teachers', formData, {
@@ -357,18 +372,53 @@ export default function AddTeacher() {
           </Col>
         )}
 
-        <Col md={3} className='mb-3'>
-          <Form.Label htmlFor='hireDate'>Hourly rate</Form.Label>
-          <Form.Control
-            id='hourlyRate'
-            type='number'
-            className={`form-control ${formik.errors.hourly_rate  && formik.touched.hourly_rate ? 'is-invalid' : ''}`}
-            {...formik.getFieldProps('hourly_rate')}
-          />
-          {formik.touched.hourly_rate && formik.errors.hourly_rate && (
-            <div className='invalid-feedback'>{formik.errors.hourly_rate}</div>
-          )}
-        </Col>
+<Row>
+  <Col md={3} className='mb-3'>
+    <Form.Label htmlFor='contract_type'>Contract Type*</Form.Label>
+    <Form.Select
+      id='contract_type'
+      className={`form-select ${formik.errors.contract_type && formik.touched.contract_type ? 'is-invalid' : ''}`}
+      {...formik.getFieldProps('contract_type')}
+    >
+      <option value=''>Select Contract Type</option>
+      <option value='hourly'>Hourly Contract</option>
+      <option value='monthly'>Monthly Contract (Permanent)</option>
+    </Form.Select>
+    {formik.touched.contract_type && formik.errors.contract_type && (
+      <div className='invalid-feedback'>{formik.errors.contract_type}</div>
+    )}
+  </Col>
+
+  {formik.values.contract_type === 'monthly' && (
+    <Col md={3} className='mb-3'>
+      <Form.Label htmlFor='monthly_salary'>Monthly Salary*</Form.Label>
+      <Form.Control
+        id='monthly_salary'
+        type='number'
+        className={`form-control ${formik.errors.monthly_salary && formik.touched.monthly_salary ? 'is-invalid' : ''}`}
+        {...formik.getFieldProps('monthly_salary')}
+      />
+      {formik.touched.monthly_salary && formik.errors.monthly_salary && (
+        <div className='invalid-feedback'>{formik.errors.monthly_salary}</div>
+      )}
+    </Col>
+  )}
+
+  {formik.values.contract_type === 'hourly' && (
+    <Col md={3} className='mb-3'>
+      <Form.Label htmlFor='hourly_rate'>Hourly Rate*</Form.Label>
+      <Form.Control
+        id='hourly_rate'
+        type='number'
+        className={`form-control ${formik.errors.hourly_rate && formik.touched.hourly_rate ? 'is-invalid' : ''}`}
+        {...formik.getFieldProps('hourly_rate')}
+      />
+      {formik.touched.hourly_rate && formik.errors.hourly_rate && (
+        <div className='invalid-feedback'>{formik.errors.hourly_rate}</div>
+      )}
+    </Col>
+  )}
+</Row>
       </Row>
 
       <Row>

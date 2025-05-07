@@ -25,7 +25,9 @@ class Teacher extends Model
         'birthday',
         'hiredate',
         'gender',
-        'avatar'
+        'avatar',
+        'contract_type', 
+        'monthly_salary', 
     ];
 
     public function classes()

@@ -151,48 +151,10 @@ export default function Sidebar() {
             </div>
             
             <NavItem to="/attendance" icon={presence} label="Attendance" />
+            <NavItem to="/fees/expenses" icon={paiements} label="Expenses" />
+            <NavItem to="/fees/teacher" icon={paiements} label="Teachers Fees" />
             
             {/* Dropdown for Expenses */}
-            <Nav.Item>
-              <div 
-                onClick={() => openSidebar && toggleDropdown('fees')} 
-                className={`nav-link d-flex align-items-center py-3 dropdown-toggle ${
-                  location.pathname.includes('/fees') ? 'active-link' : ''
-                }`}
-                role="button"
-              >
-                <div className="icon-container me-3">
-                  <img src={paiements} alt="Expenses" />
-                </div>
-                {openSidebar && (
-                  <div className="d-flex justify-content-between align-items-center w-100">
-                    <span>Expenses</span>
-                    <i className={`chevron-icon ${openDropdowns.fees ? 'rotate' : ''}`}></i>
-                  </div>
-                )}
-              </div>
-              
-              {openSidebar && (
-                <div className={`dropdown-menu ${openDropdowns.fees ? 'show' : ''}`}>
-                  <NavLink 
-                    className={({ isActive }) => 
-                      `nav-link dropdown-item py-2 ${isActive ? 'active-sublink' : ''}`
-                    } 
-                    to="/fees/expenses"
-                  >
-                    Expenses
-                  </NavLink>
-                  <NavLink 
-                    className={({ isActive }) => 
-                      `nav-link dropdown-item py-2 ${isActive ? 'active-sublink' : ''}`
-                    } 
-                    to="/fees/teacher"
-                  >
-                    Teachers fees
-                  </NavLink>
-                </div>
-              )}
-            </Nav.Item>
             
             <NavItem to="/income/student" icon={income} label="Income" />
 

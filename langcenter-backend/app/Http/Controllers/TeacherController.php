@@ -39,7 +39,9 @@ class TeacherController extends Controller
                 'hourly_rate' => 'nullable|integer',
                 'birthday' => 'nullable|date',
                 'gender' => 'nullable|string',
-                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'contract_type' => 'required|string|in:hourly,monthly',
+                'monthly_salary' => 'nullable|numeric|required_if:contract_type,monthly',
             ]);
             if ($request->hasFile('avatar')) {
                 $path = $request->file('avatar')->store('avatars', 'public');
@@ -60,6 +62,8 @@ class TeacherController extends Controller
                 'birthday' => $validated['birthday'] ?? null,
                 'hiredate' => now(),
                 'gender' => $validated['gender'] ?? null,
+                'contract_type' => $validated['contract_type'],
+                'monthly_salary' => $validated['contract_type'] === 'monthly' ? $validated['monthly_salary'] : null,
             ]);
 
             return new TeacherResource($teacher);
