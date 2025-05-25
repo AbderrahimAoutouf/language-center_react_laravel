@@ -3,62 +3,46 @@
 namespace App\Http\Controllers;
 
 use App\Models\TeachersAttendance;
-use App\Http\Controllers\Controller;
-use App\Http\Resources\ClassRessource;
-use App\Http\Resources\teachersAttendanceResource;
-use Illuminate\Http\Request;
-use app\Http\Resources\TeachersAttendanceRessource;
-use App\Http\Resources\TimeTableResource;
 use App\Models\Class_;
-use App\Models\InscrireClass;
-use App\Models\time_tables;
-use Illuminate\Support\Carbon;
+use Illuminate\Http\Request;
+use App\Http\Resources\TeachersAttendanceResource;
 
 class TeachersAttendanceController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display all attendance records.
      */
     public function index()
     {
-        $data = teachersAttendance::all();
-        return teachersAttendanceResource::collection($data);
+        $data = TeachersAttendance::all();
+        return TeachersAttendanceResource::collection($data);
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * Store attendance records for teachers in a given class.
      */
     public function store($class_id, Request $request)
     {
         $dates = $request->input('dates');
         $teachers = Class_::where('id', $class_id)->pluck('teacher_id');
-
         $teachersAttendance = [];
 
         foreach ($teachers as $teacher_id) {
             foreach ($dates as $date) {
-                // Check if an attendance record already exists for the teacher and date
                 $existingAttendance = TeachersAttendance::where('teacher_id', $teacher_id)
-                    ->where('date', $date)->where('class_id', $class_id)
+                    ->where('date', $date)
+                    ->where('class_id', $class_id)
                     ->first();
 
                 if (!$existingAttendance) {
                     $attendance = TeachersAttendance::create([
                         'date' => $date,
                         'teacher_id' => $teacher_id,
-                        'isAbsent' => '0',
+                        'isAbsent' => 0,
                         'reason' => '',
-                        'class_id' => $class_id
+                        'late_hours' => null, // support late hours from start
+                        'class_id' => $class_id,
                     ]);
-
                     $teachersAttendance[] = $attendance;
                 }
             }
@@ -67,72 +51,69 @@ class TeachersAttendanceController extends Controller
         return response()->json(['teachersAttendance' => $teachersAttendance], 201);
     }
 
-
-
-
     /**
-     * Display the specified resource.
+     * Display attendance records for a specific class.
      */
-
-
-    //public function show(teachersAttendance $teachersAttendance)
     public function show($class_id)
     {
-        $TeacherIdBasedOnGrp = Class_::where('id', $class_id)->pluck("teacher_id");
-        $result = TeachersAttendance::where('teacher_id', $TeacherIdBasedOnGrp)->where('class_id', $class_id)
+        $teacherId = Class_::where('id', $class_id)->pluck('teacher_id');
+        $records = TeachersAttendance::where('teacher_id', $teacherId)
+            ->where('class_id', $class_id)
             ->get();
 
-        return teachersAttendanceResource::collection($result);
+        return TeachersAttendanceResource::collection($records);
     }
 
-
     /**
-     * Show the form for editing the specified resource.
+     * Update attendance records (called when saving from frontend).
      */
-
-    /**
-     * Update the specified resource in storage.
-     */
-
     public function update($class_id, Request $request)
     {
         $requests = $request->all();
 
         foreach ($requests as $req) {
             if ($req['role'] === 'teacher') {
-
                 $teacherId = $req['id'];
                 $attendanceData = $req['attendanceData'];
 
                 foreach ($attendanceData as $data) {
                     $date = $data['date'];
                     $attendanceStatus = $data['attendanceStatus'];
+                    $lateHours = $data['lateHours'] ?? null;
 
-                    $existingAttendance = TeachersAttendance::where('teacher_id', $teacherId)
-                        ->where('date', $date)->where('class_id', $class_id)
+                    $record = TeachersAttendance::where('teacher_id', $teacherId)
+                        ->where('date', $date)
+                        ->where('class_id', $class_id)
                         ->first();
 
-                    $existingAttendance->isAbsent = $attendanceStatus;
-                    $existingAttendance->save();
+                    if ($record) {
+                        $record->isAbsent = $attendanceStatus;
+                        $record->late_hours = $lateHours;
+                        $record->save();
+                    }
                 }
             }
         }
+
         return response()->json(['message' => 'Attendance updated successfully'], 200);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Delete attendance rows for a given date(s) and class.
      */
-
     public function destroy($class_id, Request $request)
     {
-        $date = $request->input('date');
+        $dates = $request->input('date');
         $teachers = Class_::where('id', $class_id)->pluck('teacher_id');
 
-        $result = teachersAttendance::whereIn('date', $date)
-            ->whereIn('teacher_id', $teachers)->where('class_id', $class_id)
+        $deleted = TeachersAttendance::whereIn('date', $dates)
+            ->whereIn('teacher_id', $teachers)
+            ->where('class_id', $class_id)
             ->delete();
 
-        return response()->json(['message' => 'Rows deleted successfully', 'rows_deleted' => $result], 200);
+        return response()->json([
+            'message' => 'Rows deleted successfully',
+            'rows_deleted' => $deleted
+        ], 200);
     }
 }

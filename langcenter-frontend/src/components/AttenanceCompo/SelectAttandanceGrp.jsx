@@ -58,7 +58,8 @@ export default function SelectAttendanceGrp() {
       }
 
       const studentData = studentMap.get(studentId);
-      studentData.attendanceData.push({ date, attendanceStatus });
+      studentData.attendanceData.push({ date, attendanceStatus, lateHours: null });
+
 
       //console.log("studentmap ", studentMap.values())
     });
@@ -80,7 +81,7 @@ export default function SelectAttendanceGrp() {
       }
 
       const teacherData = teacherMap.get(teacherId);
-      teacherData.attendanceData.push({ date, attendanceStatus });
+      teacherData.attendanceData.push({ date, attendanceStatus , lateHours: datar.lateHours || null});
     });
 
     const updatedTableData = Array.from(teacherMap.values()).concat(
@@ -144,10 +145,21 @@ export default function SelectAttendanceGrp() {
         const attendanceIndex = attendanceData.findIndex(
           (item) => item.date === date
         );
+        let lateHours = null;
+        if (status === 3) {
+          const input = prompt("Enter number of hours worked while late:");
+          lateHours = input ? parseFloat(input) : 0;
+        }
+  
+        const newRecord = { date, attendanceStatus: status };
+        if (status === 3) {
+          newRecord.lateHours = lateHours;
+        }
+  
         if (attendanceIndex !== -1) {
-          attendanceData[attendanceIndex].attendanceStatus = status;
+          attendanceData[attendanceIndex] = newRecord;
         } else {
-          attendanceData.push({ date, attendanceStatus: status });
+          attendanceData.push(newRecord);
         }
         return { ...data, attendanceData };
       }
@@ -224,9 +236,9 @@ export default function SelectAttendanceGrp() {
               ✅
             </option>
             <option value={3} alt='late'>
-              ⚠️
+              ⚠️ {attendanceDataItem?.lateHours ? `(${attendanceDataItem.lateHours}h)` : ''}
             </option>
-            <option value={4} alt='holiday' disabled>
+            <option value={4} alt='holiday' >
               🎉
             </option>
           </select>

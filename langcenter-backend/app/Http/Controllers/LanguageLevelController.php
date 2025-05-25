@@ -7,18 +7,12 @@ use Illuminate\Http\Request;
 
 class LanguageLevelController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         $levels = LanguageLevel::all();
         return response()->json($levels);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -28,28 +22,26 @@ class LanguageLevelController extends Controller
         return response()->json($level);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(LanguageLevel $languageLevel)
     {
-        return response($languageLevel);
+        return response()->json($languageLevel);
     }
 
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, LanguageLevel $languageLevel)
     {
         //
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(LanguageLevel $languageLevel)
+    public function destroy($id)
     {
-        //
+        $level = LanguageLevel::find($id);
+    
+        if (!$level) {
+            return response()->json(['message' => 'Level not found'], 404);
+        }
+    
+        $level->delete();
+    
+        return response()->json(['message' => 'Level deleted successfully']);
     }
 }

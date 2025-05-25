@@ -12,9 +12,17 @@ class HolidayController extends Controller
      * Display a listing of the resource.
      */
     public function index()
-    {
+{
+    try {
         return Holiday::select('id', 'name', 'start_date', 'end_date')->get();
+    } catch (\Exception $e) {
+        \Log::error('Holiday Fetch Error: ' . $e->getMessage());
+        return response()->json([
+            'message' => 'Failed to retrieve holidays',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Show the form for creating a new resource.
@@ -32,7 +40,7 @@ class HolidayController extends Controller
         $request->validate([
             'name' => 'required',
             'start_date' => 'required|date',
-            'end_date' => 'required|date',
+            'end_date' => 'required|date|after:start_date',
         ]);
         $holiday = Holiday::create([
             'name' => $request->input('name'),
@@ -69,11 +77,12 @@ class HolidayController extends Controller
         $request->validate([
             'name' => 'required',
             'start_date' => 'required|date',
-            'end_date' => 'required|date',
+            'end_date' => 'required|date|after:start_date',
         ]);
-        $holiday->fill($request->post())->update();  // fill and update
-        $holiday->save();
-        return response()->json(['message' => 'Holiday Updated successfully']);
+        
+        $holiday->update($request->all());
+        
+        return response()->json(['message' => 'Holiday Updated successfully', 'data' => $holiday]);
     }
 
     /**

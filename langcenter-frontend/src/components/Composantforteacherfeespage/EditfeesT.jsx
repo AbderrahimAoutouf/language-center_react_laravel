@@ -1,205 +1,333 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFormik } from 'formik';
-import { Form, Row, Col,Table, Tab,Button} from 'react-bootstrap';
+import { Form, Row, Col, Table, Button, Card, Alert } from 'react-bootstrap';
 import * as Yup from 'yup';
-import axios from "../../api/axios"
+import axios from "../../api/axios";
 import { useNavigate, useParams } from 'react-router-dom';
 import { UseStateContext } from '../../context/ContextProvider';
+import { motion } from 'framer-motion';
 
-export default function EditfeesT()
-{
-        const [hoursData, setHoursData] = useState([]);
-        const [hourlyRateData, setHourlyRateData] = useState([]);
-
+export default function EditFeesT() {
     const navigate = useNavigate();
-    const {id} = useParams();
+    const { id } = useParams();
     const { setNotification, setVariant } = UseStateContext();
+
+    // Dynamic year generation
+    const yearOptions = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        return Array.from(
+            { length: 10 }, 
+            (_, index) => currentYear - 5 + index
+        );
+    }, []);
+
+    // Months array for more readable code
+    const monthOptions = [
+        { value: '1', label: 'January' },
+        { value: '2', label: 'February' },
+        { value: '3', label: 'March' },
+        { value: '4', label: 'April' },
+        { value: '5', label: 'May' },
+        { value: '6', label: 'June' },
+        { value: '7', label: 'July' },
+        { value: '8', label: 'August' },
+        { value: '9', label: 'September' },
+        { value: '10', label: 'October' },
+        { value: '11', label: 'November' },
+        { value: '12', label: 'December' }
+    ];
+
+    // State management
+    const [teacherData, setTeacherData] = useState([]);
+    const [hoursData, setHoursData] = useState(0);
+    const [hourlyRateData, setHourlyRateData] = useState(0);
+    const [contractType, setContractType] = useState('hourly');
+    const [monthlySalary, setMonthlySalary] = useState(0);
+
+    // Formik configuration
     const formik = useFormik({
         initialValues: {
             name: '',
             month: '',
             year: '',
-            amount:'',
+            amount: '',
         },
         validationSchema: Yup.object({
-            name : Yup.string().required('select teacher'),
-            month: Yup.string().required('select month'),
-            year: Yup.string().required('select year'),
-            amount: Yup.string().required('enter amount'),
+            name: Yup.string().required('Please select a teacher'),
+            month: Yup.string().required('Please select a month'),
+            year: Yup.string().required('Please select a year'),
+            amount: Yup.string()
+                .required('Please enter the amount')
+                .matches(/^\d+(\.\d{1,2})?$/, 'Invalid amount format'),
         }),
-            onSubmit: (values) => {
-            console.log(values);
-            const sendData = {
-                teacher_id:values.name,
-                salary:values.amount,
-                month: values.month,
-                year:values.year,
-            }
-            axios.put(`/api/salary/${id}`,sendData);
-            setNotification('Salary has been updated successfully');
+        onSubmit: async (values) => {
+            try {
+                const sendData = {
+                    teacher_id: values.name,
+                    salary: values.amount,
+                    month: values.month,
+                    year: values.year,
+                };
+
+                await axios.put(`/api/salary/${id}`, sendData);
+                
+                setNotification('Salary has been updated successfully');
                 setVariant('warning');
+                
                 setTimeout(() => {
                     setNotification('');
                     setVariant('');
-                }
-                , 3000);
-                navigate('/fees/teacher');
-            },
-        });
-        //get teacher id from salary table
-        const [teacherData, setTeacherData] = useState([]);
-        const [teacherId, setTeacherId] = useState([]);
-        const [salaryData, setSalaryData] = useState([]);
-        useEffect(
-            () => {
-                const getTeacherData = async() => {
-                    const response = await axios.get('/api/teachers');
-                    setTeacherData(response.data.data);
-                    console.log(response.data.data);
-                };
-                getTeacherData();
-                console.log("wewe");
-                const getTeacherId = async() => {
-                    const response = await axios.get(`/api/salary/${id}`);
-                    setTeacherId(response.data.data.teacher_id);
-                    formik.setValues({
-                    name:teacherId,
-                    month: response.data.data.month_number,
-                    year: response.data.data.year,
-                    amount: response.data.data.salary,
-                })
+                }, 3000);
                 
-                };
-                getTeacherId()
+                navigate('/fees/teacher');
+            } catch (error) {
+                console.error('Error updating salary:', error);
+                setNotification('Failed to update salary. Please try again.');
+                setVariant('danger');
             }
-            ,[teacherId])
-            //get worked hours from hours table
-            useEffect(
-                () => {
-                    axios.get(`/api/salary/${id}`)
-                    .then(response => {
-                    console.log(response);
-                    setHoursData(response.data.data.hours);
-                    })
-                    teacherData.map((teacher) => 
-                    {
-                    if(teacher.id == formik.values.name)
-                    {
-                        setHourlyRateData(teacher.hourly_rate);
-                    }
-                })
-                    
+        },
+    });
+
+    // Fetch initial data
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                // Fetch teachers
+                const teachersResponse = await axios.get('/api/teachers');
+                const teachers = teachersResponse.data.data;
+                setTeacherData(teachers);
+
+                // Fetch specific salary entry
+                const salaryResponse = await axios.get(`/api/salary/${id}`);
+                const salaryData = salaryResponse.data.data;
+
+                // Find the teacher details
+                const teacherFound = teachers.find(
+                    teacher => teacher.id === salaryData.teacher_id
+                );
+
+                // Set form values
+                formik.setValues({
+                    name: salaryData.teacher_id,
+                    month: salaryData.month_number,
+                    year: salaryData.year,
+                    amount: salaryData.salary,
+                });
+
+                // Set additional details
+                if (teacherFound) {
+                    setContractType(teacherFound.contract_type);
+                    setHourlyRateData(teacherFound.hourly_rate);
+                    setMonthlySalary(teacherFound.monthly_salary);
+                }
+
+                // Set hours data
+                setHoursData(salaryData.hours || 0);
+            } catch (error) {
+                console.error('Error fetching initial data:', error);
+                setNotification('Failed to load salary details');
+                setVariant('danger');
             }
-            ,[formik.values.name,formik.values.month,formik.values.year])
-                        return(
-        <div>
-            <Form onSubmit={formik.handleSubmit}>
-                <Row>
-                    <Col>
-                        <Form.Label htmlFor='name'>Teacher Name*</Form.Label>
-                            <Form.Select
-                            id='name'
-                            className={`form-control ${formik.errors.name  && formik.touched.name ? 'is-invalid' : ''}`}
-                            {...formik.getFieldProps('name')}
-                            disabled
+        };
+
+        fetchInitialData();
+    }, [id]);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="container-fluid p-4"
+        >
+            <Card className="shadow-sm">
+                <Card.Header as="h4" className="bg-primary text-white">
+                    Edit Teacher Salary Entry
+                </Card.Header>
+                <Card.Body>
+                    <Form onSubmit={formik.handleSubmit}>
+                        <Row className="g-3">
+                            {/* Teacher Name Dropdown */}
+                            <Col md={3}>
+                                <Form.Group>
+                                    <Form.Label htmlFor='name'>Teacher Name*</Form.Label>
+                                    <Form.Select
+                                        id='name'
+                                        className={`form-control ${formik.errors.name && formik.touched.name ? 'is-invalid' : ''}`}
+                                        {...formik.getFieldProps('name')}
+                                        disabled
+                                    >
+                                        <option value=''>Select Teacher</option>
+                                        {teacherData.map((teacher) => (
+                                            <option 
+                                                key={teacher?.id} 
+                                                value={teacher?.id}
+                                            >
+                                                {teacher?.first_name} {teacher?.last_name}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                    {formik.touched.name && formik.errors.name && (
+                                        <div className='invalid-feedback'>
+                                            {formik.errors.name}
+                                        </div>
+                                    )}
+                                </Form.Group>
+                            </Col>
+
+                            {/* Month Dropdown */}
+                            <Col md={3}>
+                                <Form.Group>
+                                    <Form.Label htmlFor='month'>Month*</Form.Label>
+                                    <Form.Select
+                                        id='month'
+                                        className={`form-control ${formik.errors.month && formik.touched.month ? 'is-invalid' : ''}`}
+                                        {...formik.getFieldProps('month')}
+                                        disabled
+                                    >
+                                        <option value=''>Select Month</option>
+                                        {monthOptions.map((month) => (
+                                            <option 
+                                                key={month.value} 
+                                                value={month.value}
+                                            >
+                                                {month.label}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                    {formik.touched.month && formik.errors.month && (
+                                        <div className='invalid-feedback'>
+                                            {formik.errors.month}
+                                        </div>
+                                    )}
+                                </Form.Group>
+                            </Col>
+
+                            {/* Year Dropdown */}
+                            <Col md={3}>
+                                <Form.Group>
+                                    <Form.Label htmlFor='year'>Year*</Form.Label>
+                                    <Form.Select
+                                        id='year'
+                                        className={`form-control ${formik.errors.year && formik.touched.year ? 'is-invalid' : ''}`}
+                                        {...formik.getFieldProps('year')}
+                                        disabled
+                                    >
+                                        <option value=''>Select Year</option>
+                                        {yearOptions.map((year) => (
+                                            <option 
+                                                key={year} 
+                                                value={year}
+                                            >
+                                                {year}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                    {formik.touched.year && formik.errors.year && (
+                                        <div className='invalid-feedback'>
+                                            {formik.errors.year}
+                                        </div>
+                                    )}
+                                </Form.Group>
+                            </Col>
+
+                            {/* Amount Input */}
+                            <Col md={3}>
+                                <Form.Group>
+                                    <Form.Label htmlFor='amount'>Amount*</Form.Label>
+                                    <Form.Control
+                                        id='amount'
+                                        type='text'
+                                        {...formik.getFieldProps('amount')}
+                                        className={`form-control ${formik.errors.amount && formik.touched.amount ? 'is-invalid' : ''}`}
+                                        placeholder="Enter salary amount"
+                                    />
+                                    {formik.touched.amount && formik.errors.amount && (
+                                        <div className='invalid-feedback'>
+                                            {formik.errors.amount}
+                                        </div>
+                                    )}
+                                </Form.Group>
+                            </Col>
+                        </Row>
+
+                        {/* Submit Button */}
+                        <div className="mt-3 d-flex justify-content-end">
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                             >
-                            <option value=''>Select Teacher</option>
-                            {
-                            teacherData.map((teacher) => (
-                                <option key={teacher?.id} value={teacher?.id}>
-                                    {teacher?.first_name} {teacher?.last_name}
-                                </option>
-                            ))
-}
-                            {formik.touched.name&& formik.errors.name && (
-                            <div className='invalid-feedback'>{formik.errors.name}</div>
-                            )}
-                            </Form.Select>
-                    </Col>
-                    <Col>
-                        <Form.Label htmlFor='month'>Month*</Form.Label>
-                                
-                            <Form.Select
-                            id='month'
-                            className={`form-control ${formik.errors.month  && formik.touched.month ? 'is-invalid' : ''}`}
-                            {...formik.getFieldProps('month')}
-                            disabled
-                            >
-                            <option value=''>Select Month</option>
-                            <option value='1'>January</option>
-                            <option value='2'>February</option>
-                            <option value='3'>March</option>
-                            <option value='4'>April</option>
-                            <option value='5'>May</option>
-                            <option value='6'>June</option>
-                            <option value='7'>July</option>
-                            <option value='8'>August</option>
-                            <option value='9'>September</option>
-                            <option value='10'>October</option>
-                            <option value='11'>November</option>
-                            <option value='12'>December</option>
-                            {formik.touched.month&& formik.errors.month && (
-                            <div className='invalid-feedback'>{formik.errors.month}</div>
-                            )}
-                            </Form.Select>
-                    </Col>
-                    <Col>
-                        <Form.Label htmlFor='year'>Year*</Form.Label>
-                                
-                            <Form.Select
-                            id='year'
-                            className={`form-control ${formik.errors.year  && formik.touched.year ? 'is-invalid' : ''}`}
-                            {...formik.getFieldProps('year')}
-                            disabled
-                            >
-                            <option value=''>Select Year</option>
-                            <option value='2021'>2021</option>
-                            <option value='2022'>2022</option>
-                            <option value='2023'>2023</option>
-                            <option value='2024'>2024</option>
-                            {formik.touched.year&& formik.errors.year && (
-                            <div className='invalid-feedback'>{formik.errors.year}</div>
-                            )}
-                            </Form.Select>
-                    </Col>
-                    <Col>
-                        <Form.Label htmlFor='amount'>Amount*</Form.Label>
-                        <Form.Control
-                            id='amount'
-                            type='text'
-                            {...formik.getFieldProps('amount')}
-                            isInvalid={formik.touched.amount && formik.errors.amount}
-                        />
-                        <Form.Control.Feedback type="invalid">
-                            {formik.errors.amount}
-                        </Form.Control.Feedback>
-                    </Col>
-                    </Row>
-                    <Button variant="secondary" type="submit" className="mt-3">
-                        save
-                    </Button>
-                </Form>
-                <div className='d-flex flex-row-reverse me-5'>  
-                {/* payment table containe paid amount grand total ,worked hours */}
-                <Table striped bordered hover className='w-25' >
-                    <thead>
-                        <tr>
-                        <th>Worked hours</th>
-                        <td>{hoursData}</td>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                        <th>Hourly rate</th>
-                        <td>{hourlyRateData}</td>
-                        </tr>
-                        <tr>
-                        <th>month salary</th>
-                        <td>{hoursData * hourlyRateData}</td>
-                        </tr>
-                    </tbody>
-                </Table>
-            </div>
-            </div>
-    )
+                                <Button 
+                                    type='submit' 
+                                    variant="warning"
+                                    disabled={!formik.isValid}
+                                >
+                                    Update Salary Entry
+                                </Button>
+                            </motion.div>
+                        </div>
+                    </Form>
+
+                    {/* Payment Details Table */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className='mt-4'
+                    >
+                        <Table striped bordered hover responsive>
+                            <thead className="bg-light">
+                                <tr>
+                                    <th colSpan={2} className="text-center">
+                                        Payment Details
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>Contract Type</th>
+                                    <td>
+                                        {contractType === 'monthly' 
+                                            ? 'Monthly (Permanent)' 
+                                            : 'Hourly'}
+                                    </td>
+                                </tr>
+                                {contractType === 'hourly' ? (
+                                    <>
+                                        <tr>
+                                            <th>Worked Hours</th>
+                                            <td>{hoursData || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Hourly Rate</th>
+                                            <td>{hourlyRateData || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Calculated Monthly Salary</th>
+                                            <td>
+                                                {hoursData && hourlyRateData 
+                                                    ? (hoursData * hourlyRateData).toFixed(2)
+                                                    : 'N/A'}
+                                            </td>
+                                        </tr>
+                                    </>
+                                ) : (
+                                    <>
+                                        <tr>
+                                            <th>Fixed Monthly Salary</th>
+                                            <td>{monthlySalary}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Absences</th>
+                                            <td>Check attendance records</td>
+                                        </tr>
+                                    </>
+                                )}
+                            </tbody>
+                        </Table>
+                    </motion.div>
+                </Card.Body>
+            </Card>
+        </motion.div>
+    );
 }

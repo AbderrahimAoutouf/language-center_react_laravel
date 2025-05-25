@@ -22,17 +22,27 @@ class ExpensesController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        $data = $request->validate([
-            'expense_name' => 'required',
-            'expense_amount' => 'required',
-            'expense_description' => 'required',
-        ]);
-        Expenses::create($data);
-        return response()->json([
-            'message' => 'Expense created successfully'
-        ], 201);
-    }
+{
+    $data = $request->validate([
+        'expense_name' => 'required|string|max:255',
+        'expense_amount' => 'required|numeric',
+        'expense_description' => 'nullable|string',
+        'quantity' => 'required|integer',
+        'payment_type' => 'required|string|max:100',
+        'item_details' => 'required|string',
+        'discount' => 'nullable|numeric',
+        'total_override' => 'nullable|numeric',
+        'purchased_by' => 'required|string|max:255',
+        'purchased_from' => 'required|string|max:255',
+    ]);
+
+    Expenses::create($data);
+
+    return response()->json([
+        'message' => 'Expense created successfully'
+    ], 201);
+}
+
 
     /**
      * Display the specified resource.
@@ -47,17 +57,27 @@ class ExpensesController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, Expenses $expense)
-    {
-        $data = $request->validate([
-            'expense_name' => 'required',
-            'expense_amount' => 'required',
-            'expense_description' => 'required',
-        ]);
-        $expense->update($data);
-        return response()->json([
-            'message' => 'Expense updated successfully'
-        ], 200);
-    }
+{
+    $data = $request->validate([
+        'expense_name' => 'required|string|max:255',
+        'expense_amount' => 'required|numeric',
+        'expense_description' => 'nullable|string',
+        'quantity' => 'required|integer',
+        'payment_type' => 'required|string|max:100',
+        'item_details' => 'required|string',
+        'discount' => 'nullable|numeric',
+        'total_override' => 'nullable|numeric',
+        'purchased_by' => 'required|string|max:255',
+        'purchased_from' => 'required|string|max:255',
+    ]);
+
+    $expense->update($data);
+
+    return response()->json([
+        'message' => 'Expense updated successfully'
+    ], 200);
+}
+
 
     /**
      * Remove the specified resource from storage.

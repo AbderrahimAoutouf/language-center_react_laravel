@@ -63,7 +63,7 @@ export default function Sidebar() {
 
   // Handle logout
   const handleLogout = () => {
-    localStorage.removeItem('ACCES_TOKEN');
+    localStorage.removeItem('ACCESS_TOKEN');
     logout();
     window.location.href = '/';
   };

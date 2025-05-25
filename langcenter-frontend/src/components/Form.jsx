@@ -196,6 +196,8 @@ const archiveParent = (parentId) => {
         testFees: 100,
         testFeesPaid: 0,
         methode: ``,
+        isFree: false,
+        photoRights: false,
       },
     validationSchema: yup.object().shape({
     firstName: yup.string()
@@ -208,11 +210,11 @@ const archiveParent = (parentId) => {
     .required('required'),
     class: yup.string().required("required"),
       gender: yup.string().oneOf(['female','male']).required('required'),
-      address: yup.string().required('required'),
-      country: yup.string().required('Country is required'),
-      state: yup.string().required('State is required'),
-      city: yup.string().required('City is required'),
-      street: yup.string().required('Street is required'),
+      address: yup.string(),
+      country: yup.string(),
+      state: yup.string(),
+      city: yup.string(),
+      street: yup.string(),
       dateofBirth: yup.date().required('required'),
       adult: yup.boolean().oneOf[true,false],
       email: yup.string().email('Invalid email'),
@@ -222,8 +224,8 @@ const archiveParent = (parentId) => {
       guardCin: yup.string().min(2,'to short to be a valid CIN').max(8,'to long to be a valid CIN'),
       guardEmail: yup.string().email('invalid Email'),
       guardPhone: yup.string().min(9,'to short to be a valid phone number').required('Required for minors'),
-      emergencyContact: yup.string().required('Emergency contact is required'),
-      parentRelationship: yup.string().required('Relationship is required'),
+      emergencyContact: yup.string(),
+      parentRelationship: yup.string(),
       guardGender: yup.string(),
       guardBirthDate: yup.date(),
       guardAddress: yup.string(),
@@ -237,6 +239,9 @@ const archiveParent = (parentId) => {
       testFees: yup.number(),
       testFeesPaid: yup.number(),
       methode: yup.string(),
+      isFree: yup.boolean(),
+      photoRights: yup.boolean(),
+      
     }),
   onSubmit: (values) => {
     console.log("wewe are here");
@@ -275,6 +280,8 @@ const archiveParent = (parentId) => {
       adresse: `${formik.values.street}, ${formik.values.city}, ${formik.values.state}, ${formik.values.country}`,
       adulte: formik.values.adult,
       underAge: false,
+      gratuit: formik.values.isFree,
+      photo_authorized: formik.values.photoRights, 
     }
     let etudiantData = adultData;
     if (underAge === true){
@@ -314,11 +321,17 @@ const archiveParent = (parentId) => {
       }
       setNotification("Failed to add student: " + (error.response?.data?.message || "Validation error"));
       setVariant("danger");
+      setTimeout(() => {
+        setNotification('');
+        setVariant('');
+      }, 3000);
       return; // Prevent further execution
     }
 
     console.log(response.data.data.id);
     const etudiantId = response.data.data.id;
+    console.log("Response received:", response);
+
         let inscriptionData = {
       etudiant_id: etudiantId,
       class_id: formik.values.class,
@@ -370,16 +383,118 @@ const archiveParent = (parentId) => {
     } catch (error) {
       console.log(error);
     }
+
   }
+   if (formik.values.insurrance == true || formik.values.testLevel == true || formik.values.course == true) {
+    try {
+      console.log(`Attempting to download PDF for student ID: ${etudiantId}`);
+      
+      const pdfResponse = await axios.get(`/api/etudiants/${etudiantId}/receipt`, {
+        responseType: 'blob',
+        timeout: 30000, // 30 second timeout
+        headers: {
+          'Accept': 'application/pdf',
+        }
+      });
+
+      console.log('PDF Response received:', pdfResponse);
+      console.log('PDF Response headers:', pdfResponse.headers);
+      console.log('PDF Response data type:', typeof pdfResponse.data);
+      console.log('PDF Response data size:', pdfResponse.data.size);
+
+      // Check if we actually received a PDF
+      if (!pdfResponse.data || pdfResponse.data.size === 0) {
+        throw new Error('Received empty PDF response');
+      }
+
+      // Create blob with explicit PDF mime type
+      const blob = new Blob([pdfResponse.data], { 
+        type: 'application/pdf' 
+      });
+
+      console.log('Blob created:', blob);
+      console.log('Blob size:', blob.size);
+      console.log('Blob type:', blob.type);
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `receipt-${etudiantId}.pdf`;
+      link.style.display = 'none';
+      
+      // Add to DOM, click, then remove
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      console.log('PDF download initiated successfully');
+      
+    } catch (error) {
+      console.error("PDF download error details:", error);
+      console.error("Error response:", error.response);
+      console.error("Error message:", error.message);
+      
+      let errorMessage = "Échec du téléchargement du reçu PDF";
+      
+      if (error.response) {
+        console.error("Server responded with:", error.response.status, error.response.statusText);
+        console.error("Response data:", error.response.data);
+        
+        if (error.response.status === 404) {
+          errorMessage = "Reçu non trouvé (404)";
+        } else if (error.response.status === 500) {
+          errorMessage = "Erreur serveur lors de la génération du PDF (500)";
+        } else {
+          errorMessage = `Erreur serveur: ${error.response.status} ${error.response.statusText}`;
+        }
+      } else if (error.request) {
+        errorMessage = "Pas de réponse du serveur";
+      } else {
+        errorMessage = `Erreur: ${error.message}`;
+      }
+      
+      setNotification(errorMessage);
+      setVariant("danger");
+      
+      // Don't return here - let the success message show even if PDF fails
+    }    }
+
   }
+ 
     setNotification("Student added successfully");
     setVariant("success");
     setTimeout(() => {
       setNotification("");
       setVariant("");
-    }, 7000);
-    navigate(`${x}/student`);
+      navigate(`${x}/student`);
+    }, 3000);
+    
+   
+    
   }
+  useEffect(() => {
+    if (formik.values.isFree) {
+      formik.setValues({
+        ...formik.values,
+        insurrance: false,
+        course: false,
+        testLevel: false,
+        courseFeesPaid: 0,
+        testFeesPaid: 0,
+        negotiatedPrice: 0,
+        discount: 0,
+        customDiscount: 0,
+        isFree: true // Force la valeur
+      });
+    }
+  }, [formik.values.isFree]);
+
 
   // Ajouter ce useEffect pour détecter les changements sur le CIN ou téléphone
 useEffect(() => {
@@ -474,6 +589,11 @@ useEffect(() => {
         break;
     }
   },[formik.values.negotiatedPrice]);
+
+
+
+  
+  
   return (
         <Form noValidate onSubmit={handleSubmit}>
           <Row className='mb-3'>
@@ -522,7 +642,7 @@ useEffect(() => {
               xs={7}
               className="position-relative"
               >
-              <Form.Label>Gender<span className='text-danger'>*</span></Form.Label>
+              <Form.Label>Gender</Form.Label>
               <Form.Select
               component="select"
               id="gender"
@@ -558,7 +678,7 @@ useEffect(() => {
             </Form.Control.Feedback>
             </Form.Group>
             <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>Country<span className='text-danger'>*</span></Form.Label>
+        <Form.Label>Country</Form.Label>
         <Form.Select
         id='country'
           name="country"
@@ -586,7 +706,7 @@ useEffect(() => {
 
       {/* Région */}
       <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>State<span className='text-danger'>*</span></Form.Label>
+        <Form.Label>State</Form.Label>
         <Form.Select
           id='state'
           name="state"
@@ -614,7 +734,7 @@ useEffect(() => {
 
       {/* Ville */}
       <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>City<span className='text-danger'>*</span></Form.Label>
+        <Form.Label>City</Form.Label>
         {cities.length > 0 ? (
           <Form.Select
             name="city"
@@ -645,7 +765,7 @@ useEffect(() => {
 
       {/* Rue */}
       <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>Street<span className='text-danger'>*</span></Form.Label>
+        <Form.Label>Street</Form.Label>
         <Form.Control
           id='street'
           type="text"
@@ -686,7 +806,7 @@ useEffect(() => {
             </Form.Control.Feedback>
             </Form.Group>
             <Form.Group as={Col} md="3" sm="6" xs="12" className="position-relative">
-  <Form.Label>Emergency Contact <span className='text-danger'>*</span></Form.Label>
+  <Form.Label>Emergency Contact</Form.Label>
   <Form.Control
     type="tel"
     placeholder="+(212) ..."
@@ -697,6 +817,16 @@ useEffect(() => {
   <Form.Control.Feedback type="invalid" tooltip>
     {formik.errors.emergencyContact}
   </Form.Control.Feedback>
+</Form.Group>
+<Form.Group as={Col} md="3" sm="6" xs="12" className="position-relative">
+    <Form.Label>Photo Usage Rights</Form.Label>
+    <Form.Check 
+        type="checkbox"
+        label="Autoriser l'utilisation de photos"
+        {...formik.getFieldProps('photoRights')}
+        checked={formik.values.photoRights}
+        isInvalid={formik.touched.photoRights && !!formik.errors.photoRights}
+    />
 </Form.Group>
 
             </Row>
@@ -749,7 +879,7 @@ useEffect(() => {
             </Form.Group>
               <Form.Group as={Col} md="3" sm="6" xs="12"
               className="position-relative">
-                <Form.Label>Cin<span className='text-danger'>*</span></Form.Label>
+                <Form.Label>Cin</Form.Label>
                 <Form.Control
                 type="text"
                 placeholder="cin"
@@ -764,7 +894,7 @@ useEffect(() => {
                 </Form.Group>
                 <Form.Group as={Col} md="3" sm="6" xs="12"
                 className="position-relative">
-                  <Form.Label>Gender<span className='text-danger'>*</span></Form.Label>
+                  <Form.Label>Gender</Form.Label>
                   <Form.Select
                   component="select"
                   id="guardGender"
@@ -812,7 +942,7 @@ useEffect(() => {
             </Form.Control.Feedback>
             </Form.Group>
             <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>Country<span className='text-danger'>*</span></Form.Label>
+        <Form.Label>Country</Form.Label>
         <Form.Select
         id='country'
           name="country"
@@ -843,7 +973,7 @@ useEffect(() => {
 
       {/* Région */}
       <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>State<span className='text-danger'>*</span></Form.Label>
+        <Form.Label>State</Form.Label>
         <Form.Select
           id='state'
           name="state"
@@ -871,7 +1001,7 @@ useEffect(() => {
 
       {/* Ville */}
       <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>City<span className='text-danger'>*</span></Form.Label>
+        <Form.Label>City</Form.Label>
         {cities.length > 0 ? (
           <Form.Select
             name="city"
@@ -902,7 +1032,7 @@ useEffect(() => {
 
       {/* Rue */}
       <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>Street<span className='text-danger'>*</span></Form.Label>
+        <Form.Label>Street</Form.Label>
         <Form.Control
           id='street'
           type="text"
@@ -938,7 +1068,7 @@ useEffect(() => {
   controlId="validationFormik1"
   className='position-relative'
 >
-  <Form.Label>Relation avec l'étudiant<span className='text-danger'>*</span></Form.Label>
+  <Form.Label>Relation avec l'étudiant</Form.Label>
   <Form.Select
     component="select"
     id="parentRelationship"
@@ -972,20 +1102,29 @@ useEffect(() => {
               >
               <Form.Label className='h3' >Payment options</Form.Label>
               <div className='d-flex'>
+              <Form.Check 
+                  type="switch"
+                   id="free-student"
+                    label="Étudiant gratuit"
+                    checked={formik.values.isFree}
+                       onChange={(e) => {
+                       formik.setFieldValue('isFree', e.target.checked);
+                                }}
+                           className={`me-3 fs-4 ${formik.values.isFree ? "text-danger" : ''}`}/>
             <Form.Check // prettier-ignore
               type="switch"
               id="custom-switch"
               label="Test"
               {...formik.getFieldProps('testLevel')}
               className={`me-3 fs-4 ${formik.values.testLevel === true ? "text-warning" : ''}`}
-              />
+              disabled={formik.values.isFree}/>
             <Form.Check // prettier-ignore
               type="switch"
               id="custom-switch"
               label="Insurance"
               {...formik.getFieldProps('insurrance')}
               className={`me-3 fs-4 ${formik.values.insurrance === true ? "text-success" : ''}`}
-              />
+              disabled={formik.values.isFree}/>
             
               <Form.Check // prettier-ignore
               type="switch"
@@ -993,7 +1132,7 @@ useEffect(() => {
               label="Course"
               {...formik.getFieldProps('course')}
               className={`me-3 fs-4 ${formik.values.course === true ? "text-info" : ''}`}
-              />
+              disabled={formik.values.isFree}/>
               </div>
               </Form.Group>
             {

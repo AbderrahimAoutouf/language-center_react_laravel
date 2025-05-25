@@ -1,349 +1,461 @@
-import { useEffect,useState  } from "react"
-import { Modal,Form,Row,Col,Button,InputGroup } from "react-bootstrap"
-import axios from "../../api/axios"
+import { useEffect, useState } from "react";
+import { Modal, Form, Row, Col, Button, InputGroup, Spinner } from "react-bootstrap";
+import axios from "../../api/axios";
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { UseStateContext } from "../../context/ContextProvider";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion"; // Import for animations
+import { FaCheck, FaMoneyBillWave, FaPercentage, FaSchool } from "react-icons/fa";
+import { MdPayment, MdSwitchAccount, MdSecurityUpdateGood } from "react-icons/md";
+import { toast } from "react-toastify";
 
-export default function AddClass({showModal,handleClose,selectedItem,id}) {
-      const navigate = useNavigate();
-        const {user,setNotification,setVariant} = UseStateContext();
-        const [classData, setClassData] = useState([]);
-        const [total, setTotal] = useState(0);
-        let x = ""
-        if (user && user.role==='admin')
-        {
-            x = ""
-        } else if (user && user.role==='director')
-        {
-            x="/director"
-        }else {
-            x="/secretary"
-        }
-    // Fetch available courses and levels from the database
-  useEffect(() => {
-    axios.get('/api/classes').then((res) => {
-      setClassData(res.data);
+const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
+    const navigate = useNavigate();
+    const { user, setNotification, setVariant } = UseStateContext();
+    const [classData, setClassData] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [paymentSummary, setPaymentSummary] = useState({
+        subtotal: 0,
+        discount: 0,
+        total: 0,
+        remaining: 0
     });
 
-  }, []);
-  const formik = useFormik({
-        initialValues:{
-        class: '',
-        courseFeesPaid: ``,
-        negotiatedPrice: ``,
-        discount: ``,
-        customDiscount: ``,
-        insurrance: false,
-        course: false,
-        courseName: '',
-        payment_method: '',
-      },
-    validationSchema: yup.object().shape({
-    class: yup.string().required("required"),
-      courseFeesPaid: yup.number().required('required'),
-      negotiatedPrice: yup.number().required('required'),
-        discount: yup.string(),    
-        customDiscount: yup.number(),
+    // Animation variants
+    const fadeIn = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0.3 } }
+    };
+    
+    const slideIn = {
+        hidden: { x: -20, opacity: 0 },
+        visible: { x: 0, opacity: 1, transition: { duration: 0.4 } }
+    };
+
+    // Define base path based on user role
+    const basePath = user?.role === 'admin' ? "" : 
+                    user?.role === 'director' ? "/director" : "/secretary";
+
+    // Validation schema with improved error messages
+    const validationSchema = yup.object().shape({
+        class: yup.string().when('course', {
+            is: true,
+            then: () => yup.string().required("Please select a class")
+        }),
+        courseFeesPaid: yup.number()
+            .min(0, "Payment amount can't be negative")
+            .required("Payment amount is required"),
+        negotiatedPrice: yup.number()
+            .min(0, "Negotiated price can't be negative")
+            .required("Negotiated price is required"),
+        discount: yup.string(),
+        customDiscount: yup.number()
+            .nullable()
+            .min(0, "Discount can't be negative")
+            .max(100, "Discount can't exceed 100%"),
         insurrance: yup.boolean(),
         course: yup.boolean(),
-        courseName: yup.string(),
-        payment_method: yup.string(),
-  }),
-  onSubmit: (values) => {
-    console.log("wewe are here");
+        payment_method: yup.string()
+            .required("Please select a payment method")
+    });
 
-}
-});
-  const findCoursFees = (classId) => {
-    const classFees = classData.find((c) => c.id == classId);
-    if (classFees){
+    // Initialize formik
+    const formik = useFormik({
+        initialValues: {
+            class: '',
+            courseFeesPaid: '0',
+            negotiatedPrice: '0',
+            discount: '',
+            customDiscount: '',
+            insurrance: false,
+            course: false,
+            payment_method: '',
+        },
+        validationSchema,
+        onSubmit: handleSubmit
+    });
 
-      return classFees.cours.price;
-    }else {
-      return 0;
-    }
-  }
-  const handleSubmit = async(e) => {
-    e.preventDefault();
-    let response2 = [];
-    let response3 = [];
-    const etudiantId = selectedItem.id;
-    let inscriptionData = {
-      etudiant_id: etudiantId,
-      class_id: formik.values.class,
-      negotiated_price: formik.values.negotiatedPrice,
-    }
-        if (formik.values.insurrance === true || formik.values.course === true){
-                if (formik.values.course === false){
-                inscriptionData = {
-                etudiant_id: etudiantId,
-                negotiated_price: formik.values.negotiatedPrice,
-                }
-    }
-    try{
-      response2 = await axios.post('/api/inscrire-classes',inscriptionData);
-      console.log(response2);
-    }catch (error) {
-      console.log(error);
-    }
-    
-    const inscriptionId = response2.data.id;
-    const paymentData = {
-     payment_amount: formik.values.courseFeesPaid,
-     type: formik.values.payment_method,
-    }
-    try{
-      response3 = await axios.post(`/api/inscrires/${inscriptionId}/register-payment`,paymentData);
-    } catch (error) {
-      console.log(error);
-    }
-  }
-    console.log(response3);
-    setNotification("Class added successfully");
-    setVariant("success");
-    setTimeout(() => {
-      setNotification("");
-      setVariant("");
-    }, 7000);
-    window.location.reload();
-  }
-  // calculate the total fees
-  useEffect(() => {
-  const getTotals = () => {
-    let total = 0;
-    if (formik.values.insurrance){
-      console.log("insurrance");
-      total += 200;
-    }
-    if (formik.values.course){
-      console.log("course");
-      total += +findCoursFees(formik.values.class);
-    }
-    return total;
-  }
-  setTotal(getTotals());
-  },[formik.values.insurrance,formik.values.course,formik.values.testLevel,formik.values.class]);
-  useEffect(() => {
-    let res = 0;
-    if (formik.values.discount === 'custom'){
-      res = formik.values.customDiscount;
-    } else {
-      res = formik.values.discount;
-    }
-    formik.setFieldValue('negotiatedPrice',Math.round(+total - res * total / 100,2) || 0);
-  },[total,formik.values.discount,formik.values.customDiscount]);
-    useEffect (() => {
-    let negotiatedPrice = formik.values.negotiatedPrice;
-    let res = (+total - +negotiatedPrice)/(+total) * 100;
-    switch (res) {
-      case 10:
-      case 20:
-      case 30:
-          formik.setFieldValue('discount',+res);
-        break;
-      default:
-          formik.setFieldValue('discount','custom');
-          formik.setFieldValue('customDiscount',+res);
-        break;
-    }
-  },[formik.values.negotiatedPrice])
-  return (
-    <Modal show={showModal} onHide={handleClose} size="xl">
-        <Modal.Header closeButton>
-            <Modal.Title>Add Class</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-            <Form noValidate onSubmit={handleSubmit}>
-<Row className='mb-3'>
-        <Form.Group
-              as={Col}
-              className="position-relative col-11 my-3"
-              >
-              <Form.Label className='h3' >Payment options</Form.Label>
-              <div className='d-flex'>
-            <Form.Check // prettier-ignore
-              type="switch"
-              id="custom-switch"
-              label="Insurance"
-              {...formik.getFieldProps('insurrance')}
-              className={`me-3 fs-4 ${formik.values.insurrance === true ? "text-success" : ''}`}
-              />
-            
-              <Form.Check // prettier-ignore
-              type="switch"
-              id="custom-switch"
-              label="Course"
-              {...formik.getFieldProps('course')}
-              className={`me-3 fs-4 ${formik.values.course === true ? "text-info" : ''}`}
-              />
-              </div>
-              </Form.Group>
-            {
-              formik.values.course === true ?
-              <>
-                <h3>Course</h3>
-        <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Class Name<span className='text-danger'>*</span></Form.Label>
-              <Form.Select
-              component="select"
-              id="class"
-              name="class"
-              {...formik.getFieldProps('class')}
-              isInvalid={formik.touched.class && formik.errors.class}
-              >
-              <option value=''>choose Class</option>
-                {classData.map((classe) => (
-                  <option key={classe.id} value={classe.id}>
-                    {classe.name}
-                  </option>
-                ))}
-              </Form.Select>
-              <Form.Control.Feedback type="invalid" tooltip>{formik.errors.class}</Form.Control.Feedback>
-              </Form.Group>
-              <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Course Fees</Form.Label>
-              <Form.Control
-              type="text"
-              name="courseFees"
-              value={findCoursFees(formik.values.class)}
-              readOnly
-              disabled
-              />
-                </Form.Group>
-              </>
-              :
-              <>
-              </>
+    // Fetch class data
+    useEffect(() => {
+        const fetchClasses = async () => {
+            try {
+                const res = await axios.get('/api/classes');
+                setClassData(res.data);
+            } catch (error) {
+                console.error("Error fetching classes:", error);
+                toast.error("Failed to load classes");
             }
-              </Row>
-              <Row>
-              <h3>Payment</h3>
-              <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1"
-              className='position-relative'
-              >
-              <Form.Label>Total</Form.Label>
-              <Form.Control
-                type="text"
-                name="total"
-                placeholder="total"
-                value={total}
-                disabled
-                />
-          </Form.Group>
-          <Form.Group as={Col} md="3" sm="6" xs="12" controlId="validationFormik1" className='position-relative'>
-  <Form.Label>Discount</Form.Label>
-  <InputGroup>
-    <Form.Select
-      name="discount"
-      {...formik.getFieldProps('discount')}
-      isInvalid={formik.touched.discount && formik.errors.discount}
-    >
-      <option value="">Select Discount</option>
-      <option value="10">10%</option>
-      <option value="20">20%</option>
-      <option value="30">30%</option>
-      <option value="custom">Custom</option>
-    </Form.Select>
-    {formik.values.discount === 'custom' && (
-      <Form.Control
-        type="number"
-        name="customDiscount"
-        placeholder="Enter custom discount"
-        {...formik.getFieldProps('customDiscount')}
-        isInvalid={formik.touched.customDiscount && formik.errors.customDiscount}
-      />
-      )}
-      <InputGroup.Text id="basic-addon1">%</InputGroup.Text>
-    <Form.Control.Feedback className='' type="invalid" tooltip>
-      {formik.values.discount === 'custom' ? formik.errors.customDiscount : formik.errors.discount}
-    </Form.Control.Feedback>
-  </InputGroup>
-</Form.Group>
-              <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Negotiated Price</Form.Label>
-              <Form.Control
-              type="text"
-              name="negotiatedPrice"
-              placeholder="negotiated Price Paid"
-                {...formik.getFieldProps('negotiatedPrice')}
-                isInvalid={formik.touched.negotiatedPrice && formik.errors.negotiatedPrice}
-              />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.negotiatedPrice}</Form.Control.Feedback>
-          </Form.Group>
-            <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1"
-              className='position-relative'
-              >
-              <Form.Label>Fees Paid</Form.Label>
-              <Form.Control
-                type="text"
-                name="courseFeesPaid"
-                placeholder="courseFeesPaid"
-                {...formik.getFieldProps('courseFeesPaid')}
-                isInvalid={formik.touched.courseFeesPaid && formik.errors.courseFeesPaid}
-                />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.courseFeesPaid}</Form.Control.Feedback>
-          </Form.Group>
-          <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1"
-              className='position-relative'
-              >
-              <Form.Label className="mt-3">Payment Method</Form.Label>
-              <Form.Select
-              component="select"
-              id="payment_method"
-              name="payment_method"
-              {...formik.getFieldProps('payment_method')}
-              isInvalid={formik.touched.payment_method && formik.errors.payment_method}
-              >
-              <option value=''>choose Payment Method</option>
-              <option value='cash'>Cash</option>
-              <option value='check'>Check</option>
-              <option value='credit card'>Credit Card</option>
-              <option value='bank transfer'>Bank Transfer</option>
-              </Form.Select>
-              <Form.Control.Feedback type="invalid" tooltip>{formik.errors.payment_method}</Form.Control.Feedback>
-              </Form.Group>
-        </Row>
-        </Form>
-        </Modal.Body>
-        <Modal.Footer>
-            <button className="btn btn-primary" type="submit" onClick={(e) => handleSubmit(e)}>Save</button>
-            <button className="btn btn-secondary" onClick={handleClose}>Close</button>
-        </Modal.Footer>
-    </Modal>
-  )
-}
+        };
+        
+        fetchClasses();
+    }, []);
+
+    // Find course fees based on class ID
+    const findCoursFees = (classId) => {
+        const classFees = classData.find((c) => c.id == classId);
+        return classFees ? classFees.cours.price : 0;
+    };
+
+    // Calculate total fees when dependencies change
+    useEffect(() => {
+        const calculateTotal = () => {
+            let calculatedTotal = 0;
+            
+            if (formik.values.insurrance) {
+                calculatedTotal += 200; // Insurance fee
+            }
+            
+            if (formik.values.course) {
+                calculatedTotal += +findCoursFees(formik.values.class);
+            }
+            
+            return calculatedTotal;
+        };
+        
+        const newTotal = calculateTotal();
+        setTotal(newTotal);
+        
+        // Update negotiated price when total changes
+        let discountPercent = 0;
+        if (formik.values.discount === 'custom') {
+            discountPercent = formik.values.customDiscount || 0;
+        } else {
+            discountPercent = formik.values.discount || 0;
+        }
+        
+        const discountAmount = (newTotal * discountPercent) / 100;
+        const negotiatedPrice = Math.round(newTotal - discountAmount);
+        
+        formik.setFieldValue('negotiatedPrice', negotiatedPrice || 0);
+        
+        // Update payment summary
+        setPaymentSummary({
+            subtotal: newTotal,
+            discount: discountAmount,
+            total: negotiatedPrice,
+            remaining: negotiatedPrice - formik.values.courseFeesPaid
+        });
+    }, [
+        formik.values.insurrance, 
+        formik.values.course, 
+        formik.values.class, 
+        formik.values.discount, 
+        formik.values.customDiscount,
+        formik.values.courseFeesPaid
+    ]);
+
+    // Update discount when negotiated price changes
+    useEffect(() => {
+        if (total > 0) {
+            const negotiatedPrice = +formik.values.negotiatedPrice;
+            const discountPercent = ((total - negotiatedPrice) / total) * 100;
+            
+            // Check if discount matches predefined values
+            if ([10, 20, 30].includes(Math.round(discountPercent))) {
+                formik.setFieldValue('discount', Math.round(discountPercent).toString());
+            } else {
+                formik.setFieldValue('discount', 'custom');
+                formik.setFieldValue('customDiscount', Math.round(discountPercent * 100) / 100);
+            }
+        }
+    }, [formik.values.negotiatedPrice, total]);
+
+    // Handle form submission
+    async function handleSubmit(values) {
+        if (!selectedItem?.id) {
+            toast.error("No student selected");
+            return;
+        }
+        
+        setIsSubmitting(true);
+        
+        try {
+            // Prepare inscription data
+            let inscriptionData = {
+                etudiant_id: selectedItem.id,
+                negotiated_price: values.negotiatedPrice,
+            };
+            
+            // Add class_id if course is selected
+            if (values.course) {
+                inscriptionData.class_id = values.class;
+            }
+            
+            // Create inscription
+            const inscriptionResponse = await axios.post(
+                '/api/inscrire-classes', 
+                inscriptionData
+            );
+            
+            // Register payment for the inscription
+            if (inscriptionResponse.data && inscriptionResponse.data.id) {
+                const paymentData = {
+                    payment_amount: values.courseFeesPaid,
+                    type: values.payment_method,
+                };
+                
+                await axios.post(
+                    `/api/inscrires/${inscriptionResponse.data.id}/register-payment`,
+                    paymentData
+                );
+                
+                toast.success("Class added successfully!");
+                if (onSuccess) onSuccess();
+                handleClose();
+            }
+        } catch (error) {
+            console.error("Error adding class:", error);
+            toast.error(error.response?.data?.message || "Failed to add class");
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    return (
+        <Modal
+            show={showModal}
+            onHide={handleClose}
+            size="lg"
+            backdrop="static"
+            aria-labelledby="contained-modal-title-vcenter"
+            centered
+        >
+            <Form noValidate onSubmit={formik.handleSubmit}>
+                <Modal.Header closeButton>
+                    <Modal.Title>
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5 }}
+                            className="d-flex align-items-center"
+                        >
+                            <FaSchool className="me-2" />
+                            Add Class for {selectedItem?.lastName} {selectedItem?.firstName}
+                        </motion.div>
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <AnimatePresence>
+                        <motion.div
+                            variants={fadeIn}
+                            initial="hidden"
+                            animate="visible"
+                            className="mb-4"
+                        >
+                            <div className="p-3 bg-light rounded mb-4">
+                                <h5 className="mb-3 border-bottom pb-2">Payment Options</h5>
+                                <Row>
+                                    <Col md={4}>
+                                        <Form.Check
+                                            type="switch"
+                                            id="course-switch"
+                                            label={<div className="d-flex align-items-center"><FaSchool className="me-2 text-primary" /> Course</div>}
+                                            {...formik.getFieldProps('course')}
+                                            className="mb-2"
+                                        />
+                                    </Col>
+                                    <Col md={4}>
+                                        <Form.Check
+                                            type="switch"
+                                            id="insurance-switch"
+                                            label={<div className="d-flex align-items-center"><MdSecurityUpdateGood className="me-2 text-success" /> Insurance</div>}
+                                            {...formik.getFieldProps('insurrance')}
+                                            className="mb-2"
+                                        />
+                                    </Col>
+                                </Row>
+                            </div>
+                            
+                            {formik.values.course && (
+                                <motion.div
+                                    variants={slideIn}
+                                    initial="hidden"
+                                    animate="visible"
+                                    className="mb-4 p-3 border rounded"
+                                >
+                                    <h5 className="mb-3 d-flex align-items-center">
+                                        <FaSchool className="me-2 text-primary" /> Course Details
+                                    </h5>
+                                    <Row>
+                                        <Form.Group as={Col} md={6} className="mb-3">
+                                            <Form.Label>Class</Form.Label>
+                                            <Form.Select
+                                                id="class"
+                                                {...formik.getFieldProps('class')}
+                                                isInvalid={formik.touched.class && formik.errors.class}
+                                            >
+                                                <option value="">Select a class</option>
+                                                {classData.map((c) => (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.name} - {c.cours.title}
+                                                    </option>
+                                                ))}
+                                            </Form.Select>
+                                            <Form.Control.Feedback type="invalid">
+                                                {formik.errors.class}
+                                            </Form.Control.Feedback>
+                                        </Form.Group>
+                                        <Form.Group as={Col} md={6} className="mb-3">
+                                            <Form.Label>Course Fee</Form.Label>
+                                            <InputGroup>
+                                                <InputGroup.Text>
+                                                    <FaMoneyBillWave />
+                                                </InputGroup.Text>
+                                                <Form.Control
+                                                    type="text"
+                                                    value={findCoursFees(formik.values.class)}
+                                                    disabled
+                                                />
+                                            </InputGroup>
+                                        </Form.Group>
+                                    </Row>
+                                    <Row>
+                                        <Form.Group as={Col} md={6} className="mb-3">
+                                            <Form.Label>Discount</Form.Label>
+                                            <InputGroup>
+                                                <Form.Select
+                                                    {...formik.getFieldProps('discount')}
+                                                    isInvalid={formik.touched.discount && formik.errors.discount}
+                                                >
+                                                    <option value="">No discount</option>
+                                                    <option value="10">10%</option>
+                                                    <option value="20">20%</option>
+                                                    <option value="30">30%</option>
+                                                    <option value="custom">Custom</option>
+                                                </Form.Select>
+                                                {formik.values.discount === 'custom' && (
+                                                    <Form.Control
+                                                        type="number"
+                                                        placeholder="Custom %"
+                                                        {...formik.getFieldProps('customDiscount')}
+                                                        isInvalid={formik.touched.customDiscount && formik.errors.customDiscount}
+                                                    />
+                                                )}
+                                                <InputGroup.Text>
+                                                    <FaPercentage />
+                                                </InputGroup.Text>
+                                                <Form.Control.Feedback type="invalid">
+                                                    {formik.errors.discount || formik.errors.customDiscount}
+                                                </Form.Control.Feedback>
+                                            </InputGroup>
+                                        </Form.Group>
+                                        <Form.Group as={Col} md={6} className="mb-3">
+                                            <Form.Label>Negotiated Price</Form.Label>
+                                            <InputGroup>
+                                                <InputGroup.Text>
+                                                    <FaMoneyBillWave />
+                                                </InputGroup.Text>
+                                                <Form.Control
+                                                    type="number"
+                                                    {...formik.getFieldProps('negotiatedPrice')}
+                                                    isInvalid={formik.touched.negotiatedPrice && formik.errors.negotiatedPrice}
+                                                />
+                                                <Form.Control.Feedback type="invalid">
+                                                    {formik.errors.negotiatedPrice}
+                                                </Form.Control.Feedback>
+                                            </InputGroup>
+                                        </Form.Group>
+                                    </Row>
+                                    <Row>
+                                        <Form.Group as={Col} md={6} className="mb-3">
+                                            <Form.Label>Payment Amount</Form.Label>
+                                            <InputGroup>
+                                                <InputGroup.Text>
+                                                    <MdPayment />
+                                                </InputGroup.Text>
+                                                <Form.Control
+                                                    type="number"
+                                                    {...formik.getFieldProps('courseFeesPaid')}
+                                                    isInvalid={formik.touched.courseFeesPaid && formik.errors.courseFeesPaid}
+                                                />
+                                                <Form.Control.Feedback type="invalid">
+                                                    {formik.errors.courseFeesPaid}
+                                                </Form.Control.Feedback>
+                                            </InputGroup>
+                                        </Form.Group>
+                                        <Form.Group as={Col} md={6} className="mb-3">
+                                            <Form.Label>Payment Method</Form.Label>
+                                            <InputGroup>
+                                                <InputGroup.Text>
+                                                    <MdSwitchAccount />
+                                                </InputGroup.Text>
+                                                <Form.Select
+                                                    {...formik.getFieldProps('payment_method')}
+                                                    isInvalid={formik.touched.payment_method && formik.errors.payment_method}
+                                                >
+                                                    <option value="">Select method</option>
+                                                    <option value="cash">Cash</option>
+                                                    <option value="check">Check</option>
+                                                    <option value="bank">Bank Transfer</option>
+                                                    <option value="card">Credit Card</option>
+                                                </Form.Select>
+                                                <Form.Control.Feedback type="invalid">
+                                                    {formik.errors.payment_method}
+                                                </Form.Control.Feedback>
+                                            </InputGroup>
+                                        </Form.Group>
+                                    </Row>
+                                </motion.div>
+                            )}
+                            
+                            {/* Payment Summary */}
+                            <motion.div
+                                variants={fadeIn}
+                                initial="hidden"
+                                animate="visible"
+                                className="p-3 bg-light rounded"
+                            >
+                                <h5 className="mb-3 border-bottom pb-2">Payment Summary</h5>
+                                <Row>
+                                    <Col md={6}>
+                                        <p><strong>Subtotal:</strong> ${paymentSummary.subtotal}</p>
+                                        <p><strong>Discount:</strong> ${paymentSummary.discount}</p>
+                                    </Col>
+                                    <Col md={6}>
+                                        <p><strong>Total:</strong> ${paymentSummary.total}</p>
+                                        <p className={paymentSummary.remaining > 0 ? "text-danger" : "text-success"}>
+                                            <strong>Remaining:</strong> ${paymentSummary.remaining}
+                                        </p>
+                                    </Col>
+                                </Row>
+                            </motion.div>
+                        </motion.div>
+                    </AnimatePresence>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleClose}>
+                        Cancel
+                    </Button>
+                    <Button 
+                        variant="primary" 
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="d-flex align-items-center"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <Spinner
+                                    as="span"
+                                    animation="border"
+                                    size="sm"
+                                    role="status"
+                                    aria-hidden="true"
+                                    className="me-2"
+                                />
+                                <span>Processing...</span>
+                            </>
+                        ) : (
+                            <>
+                                <FaCheck className="me-2" /> Save
+                            </>
+                        )}
+                    </Button>
+                </Modal.Footer>
+            </Form>
+        </Modal>
+    );
+};
+
+export default AddClass;

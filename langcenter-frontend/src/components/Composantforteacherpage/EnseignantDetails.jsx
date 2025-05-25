@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaUserEdit, FaGraduationCap, FaIdCard, FaEnvelope, FaPhone, FaMapMarkerAlt, 
         FaBirthdayCake, FaCalendarCheck, FaBook, FaDollarSign, FaChalkboardTeacher,
         FaCheckCircle, FaTimesCircle, FaCircle, FaHistory } from 'react-icons/fa';
+import { MdToggleOn, MdToggleOff } from 'react-icons/md';
 
 export default function EnseignantDetails() {
     const [teacherData, setTeacherData] = useState({});
@@ -34,6 +35,10 @@ export default function EnseignantDetails() {
 
     useEffect(() => {
         // Fetch teacher data
+        fetchTeacherData();
+    }, [id]);
+    
+    const fetchTeacherData = () => {
         setLoading(true);
         axios.get(`/api/teachers/${id}?populate=*`)
             .then((res) => {
@@ -44,9 +49,12 @@ export default function EnseignantDetails() {
                     prenom: data.first_name,
                     name: `${data.first_name} ${data.last_name}`,
                     gender: data.gender,
-                    class: data.classes && data.classes.length > 0 ? data.classes.map((cls) => cls.name).join(', ') : 'No class',
+                    classes: data.classes || [],
+                    classNames: data.classes?.length ? data.classes.map(c => c.name) : [],
+                    classDisplay: data.classes?.length ? data.classes.map(c => c.name).join(', ') : 'No class',
                     subject: data.speciality,
-                    status: data.active ? "active" : "inactive", // Set status based on active flag
+                    active: data.active ?? false,
+                    status: data.active ? "active" : "inactive",
                     phone: data.phone,
                     birthday: data.birthday,
                     email: data.email,
@@ -54,31 +62,36 @@ export default function EnseignantDetails() {
                     date_admission: data.hiredate,
                     degree: data.diploma,
                     cin: data.cin,
-                    hourly_rate: `${data.hourly_rate}DH`, // Format with currency
+                    contract_type: data.contract_type,
+                    hourly_rate: data.hourly_rate,
+                    monthly_salary: data.monthly_salary,
                     created_at: data.created_at,
-                    avatar: data.avatar || null,  // Add this line
-                    updated_at: data.updated_at
+                    avatar: data.avatar || null,
+                    updated_at: data.updated_at,
+                    status_history: data.status_history || []
                 });
                 setLoading(false);
+                fetchStatusHistory(data.status_history);
             })
             .catch((err) => {
                 console.error("Error fetching teacher data:", err);
                 setNotification && setNotification("Failed to load teacher data");
                 setVariant && setVariant("danger");
                 setLoading(false);
+                setTimeout(() => {
+                    setNotification('');
+                    setVariant('');
+                  }, 3000);
             });
-            
-        // Fetch status history
-        fetchStatusHistory();
-    }, [id]);
+    };
     
-    const fetchStatusHistory = () => {
+    const fetchStatusHistory = (history) => {
         setHistoryLoading(true);
         setHistoryError(null);
       
         try {
           // Parse the JSON status_history from teacherData
-          const rawHistory = teacherData.status_history || [];
+          const rawHistory = history || [];
           const formattedHistory = rawHistory
             .map(item => ({
               date: new Date(item.timestamp).toLocaleDateString(),
@@ -115,52 +128,47 @@ export default function EnseignantDetails() {
         } finally {
           setHistoryLoading(false);
         }
-      };
+    };
 
     const handleEditClick = () => {
         navigate(`${routePrefix}/teacher/edit/${id}`);
     };
     
-    const handleRefreshData = () => {
-        setLoading(true);
-        axios.get(`/api/teachers/${id}?populate=*`)
-            .then((res) => {
-                const data = res.data.data;
-                setTeacherData({
-                    id: data.id,
-                    nom: data.last_name,
-                    prenom: data.first_name,
-                    name: `${data.first_name} ${data.last_name}`,
-                    gender: data.gender,
-                    class: data.classes && data.classes.length > 0 ? data.classes.map((cls) => cls.name).join(', ') : 'No class',
-                    subject: data.speciality,
-                    status: data.active ? "active" : "inactive",
-                    phone: data.phone,
-                    birthday: data.birthday,
-                    email: data.email,
-                    address: data.address,
-                    date_admission: data.hiredate,
-                    degree: data.diploma,
-                    cin: data.cin,
-                    hourly_rate: `${data.hourly_rate}DH`,
-                    created_at: data.created_at,
-                    updated_at: data.updated_at,
-                    avatar: res.data.avatar,
-                });
-                setNotification && setNotification("Teacher data refreshed successfully");
-                setVariant && setVariant("success");
-                setLoading(false);
-                fetchStatusHistory();
-            })
-            .catch((err) => {
-                console.error("Error refreshing teacher data:", err);
-                setNotification && setNotification("Failed to refresh teacher data");
-                setVariant && setVariant("danger");
-                setLoading(false);
-            });
+    const handleToggleActive = async () => {
+        try {
+            const res = await axios.patch(`/api/teachers/${id}/toggle-active`);
+            const updatedStatus = res.data?.data?.active;
+            
+            setTeacherData(prev => ({
+                ...prev,
+                active: updatedStatus,
+                status: updatedStatus ? "active" : "inactive"
+            }));
+            
+            setNotification && setNotification(`Teacher status ${updatedStatus ? 'activated' : 'deactivated'}`);
+            setVariant && setVariant(updatedStatus ? "success" : "warning");
+            
+            // Refresh status history
+            fetchTeacherData();
+        } catch (error) {
+            console.error("Status toggle error:", error);
+            setNotification && setNotification("Failed to update status");
+            setVariant && setVariant("danger");
             setTimeout(() => {
-                setNotification(null);
+                setNotification('');
+                setVariant('');
               }, 3000);
+        }
+    };
+    
+    const handleRefreshData = () => {
+        fetchTeacherData();
+        setNotification && setNotification("Teacher data refreshed successfully");
+        setVariant && setVariant("success");
+        
+        setTimeout(() => {
+            setNotification(null);
+        }, 3000);
     };
 
     if (loading) {
@@ -229,6 +237,23 @@ export default function EnseignantDetails() {
         updated_by: "System",
         notes: "No status information available"
     };
+    
+    // Format payment information
+    const paymentInfo = teacherData.contract_type === 'monthly' 
+        ? `${teacherData.monthly_salary} DH (Monthly)`
+        : `${teacherData.hourly_rate} DH/hour`;
+
+    // Class badge with animation
+    const ClassBadge = ({ className }) => (
+        <motion.span 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="badge bg-info me-1 mb-1"
+            style={{ fontSize: '0.85rem', fontWeight: 'normal' }}
+        >
+            {className}
+        </motion.span>
+    );
 
     return (
         <motion.div
@@ -292,30 +317,41 @@ export default function EnseignantDetails() {
                                         {teacherData.subject || 'No Specialty'}
                                     </h6>
 
-                                    {/* Animated Status Indicator */}
+                                    {/* Status Toggle Button (consistent with TableTeacher) */}
                                     <motion.div 
                                         className="mb-4"
                                         initial={{ scale: 0.9, opacity: 0 }}
                                         animate={{ scale: 1, opacity: 1 }}
                                         transition={{ delay: 0.2, duration: 0.5 }}
                                     >
+                                        <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            whileHover={{ scale: 1.05 }}
+                                            onClick={handleToggleActive}
+                                            className="btn btn-light d-flex align-items-center gap-2 mx-auto"
+                                            style={{
+                                                border: teacherData.active ? '1px solid green' : '1px solid gray',
+                                                borderRadius: '20px',
+                                                backgroundColor: teacherData.active ? '#e9fbe9' : '#f0f0f0',
+                                                padding: '0.5rem 1rem',
+                                            }}
+                                        >
+                                            {teacherData.active 
+                                                ? <MdToggleOn color="green" size={22} /> 
+                                                : <MdToggleOff color="gray" size={22} />
+                                            }
+                                            <span style={{ fontWeight: '500', color: teacherData.active ? 'green' : 'gray' }}>
+                                                {teacherData.active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </motion.button>
+                                        
                                         <div 
-                                            className="status-container position-relative"
+                                            className="status-container position-relative mt-3"
                                             onMouseEnter={() => setShowStatusDetails(true)}
                                             onMouseLeave={() => setShowStatusDetails(false)}
                                         >
-                                            <div className={`d-inline-flex align-items-center justify-content-center py-2 px-4 rounded-pill bg-${statusColor} bg-opacity-10 border border-${statusColor}`}>
-                                                <motion.div 
-                                                    className={`status-indicator text-${statusColor} me-2`}
-                                                    initial={{ rotate: 0 }}
-                                                    animate={{ rotate: showStatusDetails ? 360 : 0 }}
-                                                    transition={{ duration: 0.5 }}
-                                                >
-                                                    {statusIcon}
-                                                </motion.div>
-                                                <span className={`fw-bold text-${statusColor}`}>
-                                                    {teacherData.status?.charAt(0).toUpperCase() + teacherData.status?.slice(1)}
-                                                </span>
+                                            <div className="text-center">
+                                                <small className="text-muted">Last status change: {latestStatusChange.date}</small>
                                             </div>
                                             
                                             <AnimatePresence>
@@ -329,10 +365,6 @@ export default function EnseignantDetails() {
                                                         transition={{ duration: 0.2 }}
                                                     >
                                                         <h6 className="fw-bold mb-2">Status Information</h6>
-                                                        <div className="d-flex justify-content-between mb-1">
-                                                            <small className="text-muted">Since:</small>
-                                                            <small>{latestStatusChange.date}</small>
-                                                        </div>
                                                         <div className="d-flex justify-content-between mb-1">
                                                             <small className="text-muted">Updated by:</small>
                                                             <small>{latestStatusChange.updated_by}</small>
@@ -370,9 +402,14 @@ export default function EnseignantDetails() {
                                     <Card className="bg-light border-0">
                                         <Card.Body>
                                             <h6 className="text-uppercase text-muted mb-3 small">Classes Assigned</h6>
-                                            <div className="d-flex align-items-center">
-                                                <FaChalkboardTeacher className="text-primary me-3" />
-                                                <div>{teacherData.class}</div>
+                                            <div className="d-flex flex-wrap justify-content-center">
+                                                {teacherData.classNames && teacherData.classNames.length > 0 ? (
+                                                    teacherData.classNames.map((cls, index) => (
+                                                        <ClassBadge key={`${teacherData.id}-${index}`} className={cls} />
+                                                    ))
+                                                ) : (
+                                                    <span className="text-muted">No classes assigned</span>
+                                                )}
                                             </div>
                                         </Card.Body>
                                     </Card>
@@ -470,8 +507,17 @@ export default function EnseignantDetails() {
                                         <motion.div className="mb-4" variants={itemVariants}>
                                             <InfoItem 
                                                 icon={<FaDollarSign />}
-                                                label="Hourly Rate"
-                                                value={teacherData.hourly_rate}
+                                                label="Contract Type"
+                                                value={teacherData.contract_type === 'monthly' ? 'Permanent' : 'Hourly'}
+                                            />
+                                        </motion.div>
+                                    </Col>
+                                    <Col md={12}>
+                                        <motion.div className="mb-4" variants={itemVariants}>
+                                            <InfoItem 
+                                                icon={<FaDollarSign />}
+                                                label="Payment"
+                                                value={paymentInfo}
                                             />
                                         </motion.div>
                                     </Col>
@@ -488,7 +534,7 @@ export default function EnseignantDetails() {
                                             variant="outline-primary" 
                                             size="sm" 
                                             className="d-flex align-items-center"
-                                            onClick={fetchStatusHistory}
+                                            onClick={() => fetchStatusHistory(teacherData.status_history)}
                                             disabled={historyLoading}
                                         >
                                             <FaHistory className="me-2" />

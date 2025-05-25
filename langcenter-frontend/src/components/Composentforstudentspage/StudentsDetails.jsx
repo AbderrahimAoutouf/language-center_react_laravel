@@ -49,6 +49,10 @@ export default function StudentsDetails() {
                 setNotification("Failed to load student data");
                 setVariant("danger");
                 setLoading(false);
+                setTimeout(() => {
+                    setNotification('');
+                    setVariant('');
+                  }, 3000);
             }
             
         };
@@ -77,6 +81,10 @@ export default function StudentsDetails() {
             console.error("Error refreshing student data:", err);
             setNotification("Failed to refresh student data");
             setVariant("danger");
+            setTimeout(() => {
+                setNotification('');
+                setVariant('');
+              }, 3000);
         }
         setTimeout(() => {
             setNotification(null);

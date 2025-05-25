@@ -235,6 +235,15 @@ body,
   transition: max-height 0.3s ease, opacity 0.3s ease;
   display: none;
 }
+.calculation-details {
+  font-size: 0.9em;
+  line-height: 1.4;
+  padding: 8px;
+}
+
+.calculation-details div {
+  white-space: nowrap;
+}
 
 .dropdown-menu.show {
   max-height: 200px;

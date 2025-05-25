@@ -1,128 +1,255 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { Form, Button, Row, Col } from 'react-bootstrap';
 import axios from '../../api/axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { UseStateContext } from '../../context/ContextProvider';
-import { useParams } from 'react-router-dom';
-import { Ellipsis } from 'react-awesome-spinners';
-import { SketchPicker } from 'react-color';
-import { useFormik } from 'formik';
 
-const Edit = () => {
-    const { id } = useParams();
+const EditExpense = () => {
+  const { id } = useParams();
   const { user, setNotification, setVariant } = UseStateContext();
   const navigate = useNavigate();
-  let x = ""
-  if (user && user.role === 'admin') {
-    x = ""
-  } else if (user && user.role === 'director') {
-    x = "/director"
-  }
-  else {
-    x = "/secretary"
-  }
-  const formik = useFormik({
-    validationSchema : Yup.object({
-    name: Yup.string().required('Expense name is required'),
-    description: Yup.string(),
-    amount: Yup.number().required('amount is required'),
-  }),
-  initialValues : {
-    name: '',
-    amount: '',
-    description: '',
-  },
-    onSubmit : (values) => {
-    // Handle form submission and add group
-    handleSubmit(values)
-    },
-    });
 
-  const handleSubmit = (values) => {
-    // Handle form submission and add group
-    const sendData = {
+  let routePrefix = '';
+  if (user?.role === 'director') routePrefix = '/director';
+  else if (user?.role === 'secretary') routePrefix = '/secretary';
+
+  const initialValues = {
+    name: '',
+    description: '',
+    amount: '',
+    quantity: '',
+    paymentType: '',
+    itemDetails: '',
+    discount: '',
+    totalOverride: '',
+    purchasedBy: '',
+    purchasedFrom: '',
+    totalAmount: 0,
+  };
+
+  const validationSchema = Yup.object({
+    name: Yup.string().required('Expense name is required'),
+    amount: Yup.number().required('Amount is required'),
+    quantity: Yup.number().required('Quantity is required'),
+    paymentType: Yup.string().required('Payment type is required'),
+    itemDetails: Yup.string().required('Item details are required'),
+    purchasedBy: Yup.string().required('Purchased by is required'),
+    purchasedFrom: Yup.string().required('Vendor name is required'),
+    description: Yup.string(),
+    discount: Yup.number(),
+    totalOverride: Yup.number(),
+  });
+
+  const calculateTotalAmount = (amount, quantity, discount) => {
+    let total = amount * quantity;
+    if (discount) {
+      total -= (total * discount) / 100;
+    }
+    return total;
+  };
+
+  const handleSubmit = async (values) => {
+    const dataToSend = {
       expense_name: values.name,
-      expense_amount: values.amount,
       expense_description: values.description,
+      expense_amount: values.amount,
+      quantity: values.quantity,
+      payment_type: values.paymentType,
+      item_details: values.itemDetails,
+      discount: values.discount || 0,
+      total_override: values.totalOverride || null,
+      purchased_by: values.purchasedBy,
+      purchased_from: values.purchasedFrom,
+      total_amount: values.totalOverride || calculateTotalAmount(values.amount, values.quantity, values.discount),
     };
-    axios.put(`/api/expenses/${id}`, sendData).then((res) => {
-      console.log(res.data);
-      setNotification('Expense Updated successfully');
+
+    try {
+      await axios.put(`/api/expenses/${id}`, dataToSend);
+      setNotification('Expense updated successfully');
       setVariant('warning');
       setTimeout(() => {
         setNotification('');
         setVariant('');
       }, 3000);
-      navigate(`${x}/fees/expenses`);
-    });
-
+      navigate(`${routePrefix}/fees/expenses`);
+    } catch (error) {
+      console.error('Failed to update expense:', error);
+      setNotification('Failed to update expense');
+      setVariant('danger');
+    }
   };
-  useEffect(() => {
-    const timeout = setTimeout(async () => {
-        const response = await axios.get(`/api/expenses/${id}`);
-        formik.setValues(
-            {
-                name: response.data.data.expense_name,
-                amount: response.data.data.expense_amount,
-                description: response.data.data.expense_description,
-            }
-        )
-    }, 1000);
-    return () => clearTimeout(timeout);
-    }, []);
 
   return (
-        <Form onSubmit={formik.handleSubmit} className="addGroup">
-          <h1>Edit Expense</h1>
-          <Row>
-            <Col md={6} className="mb-3">
-              <Form.Label htmlFor="groupName">Expense Name*</Form.Label>
-              <Form.Control
-                id="name"
-                type="text"
-                {...formik.getFieldProps('name')}
-                isInvalid={formik.touched.name && formik.errors.name}
-              />
-              <Form.Control.Feedback type="invalid">
-                {formik.errors.name}
-              </Form.Control.Feedback>
-            </Col>
-            <Col md={6} className="mb-3">
-              <Form.Label htmlFor="description">Description</Form.Label>
-              <Form.Control
-                id="description"
-                type="text"
-                {...formik.getFieldProps('description')}
-                isInvalid={
-                  formik.touched.description && formik.errors.description
-                }
-              />
-              <Form.Control.Feedback type="invalid">
-                {formik.errors.description}
-              </Form.Control.Feedback>
-            </Col>
-            <Col md={6} className="mb-3">
-              <Form.Label htmlFor="amount">Amount*</Form.Label>
-              <Form.Control
-                id="amount"
-                type="number"
-                {...formik.getFieldProps('amount')}
-                isInvalid={
-                  formik.touched.amount && formik.errors.amount
-                }
-              />
-              <Form.Control.Feedback type="invalid">
-                {formik.errors.amount}
-              </Form.Control.Feedback>
-            </Col>
-          </Row>
-          <Button type="submit" variant="primary">
-            save
-          </Button>
-        </Form>
+    <Formik
+      initialValues={initialValues}
+      validationSchema={validationSchema}
+      onSubmit={handleSubmit}
+      enableReinitialize
+    >
+      {(formik) => {
+        useEffect(() => {
+          const fetchExpense = async () => {
+            try {
+              const response = await axios.get(`/api/expenses/${id}`);
+              const data = response.data.data;
+              formik.setValues({
+                name: data.expense_name,
+                description: data.expense_description,
+                amount: data.expense_amount,
+                quantity: data.quantity,
+                paymentType: data.payment_type,
+                itemDetails: data.item_details,
+                discount: data.discount,
+                totalOverride: data.total_override,
+                purchasedBy: data.purchased_by,
+                purchasedFrom: data.purchased_from,
+                totalAmount: data.total_amount,
+              });
+            } catch (error) {
+              console.error('Failed to fetch expense:', error);
+            }
+          };
+
+          fetchExpense();
+        }, [id]);
+
+        return (
+          <Form onSubmit={formik.handleSubmit} className="p-4 shadow-sm bg-white rounded">
+            <h2 className="mb-4">Edit Expense</h2>
+            <Row>
+              {/* Same form fields as AddExpense for consistency */}
+              <Col md={6} className="mb-3">
+                <Form.Label>Expense Name *</Form.Label>
+                <Form.Control
+                  type="text"
+                  {...formik.getFieldProps('name')}
+                  isInvalid={formik.touched.name && formik.errors.name}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.name}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={6} className="mb-3">
+                <Form.Label>Description</Form.Label>
+                <Form.Control
+                  type="text"
+                  {...formik.getFieldProps('description')}
+                  isInvalid={formik.touched.description && formik.errors.description}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.description}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={4} className="mb-3">
+                <Form.Label>Amount (per item) *</Form.Label>
+                <Form.Control
+                  type="number"
+                  {...formik.getFieldProps('amount')}
+                  isInvalid={formik.touched.amount && formik.errors.amount}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.amount}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={4} className="mb-3">
+                <Form.Label>Quantity *</Form.Label>
+                <Form.Control
+                  type="number"
+                  {...formik.getFieldProps('quantity')}
+                  isInvalid={formik.touched.quantity && formik.errors.quantity}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.quantity}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={4} className="mb-3">
+                <Form.Label>Discount (optional)</Form.Label>
+                <Form.Control
+                  type="number"
+                  {...formik.getFieldProps('discount')}
+                  isInvalid={formik.touched.discount && formik.errors.discount}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.discount}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={6} className="mb-3">
+                <Form.Label>Total Override (optional)</Form.Label>
+                <Form.Control
+                  type="number"
+                  {...formik.getFieldProps('totalOverride')}
+                  isInvalid={formik.touched.totalOverride && formik.errors.totalOverride}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.totalOverride}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={6} className="mb-3">
+                <Form.Label>Payment Type *</Form.Label>
+                <Form.Control
+                  as="select"
+                  {...formik.getFieldProps('paymentType')}
+                  isInvalid={formik.touched.paymentType && formik.errors.paymentType}
+                >
+                  <option value="">Select payment type</option>
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="other">Other</option>
+                </Form.Control>
+                <Form.Control.Feedback type="invalid">{formik.errors.paymentType}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={6} className="mb-3">
+                <Form.Label>Item Details *</Form.Label>
+                <Form.Control
+                  type="text"
+                  {...formik.getFieldProps('itemDetails')}
+                  isInvalid={formik.touched.itemDetails && formik.errors.itemDetails}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.itemDetails}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={6} className="mb-3">
+                <Form.Label>Purchased By *</Form.Label>
+                <Form.Control
+                  type="text"
+                  {...formik.getFieldProps('purchasedBy')}
+                  isInvalid={formik.touched.purchasedBy && formik.errors.purchasedBy}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.purchasedBy}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={6} className="mb-3">
+                <Form.Label>Purchased From (Vendor) *</Form.Label>
+                <Form.Control
+                  type="text"
+                  {...formik.getFieldProps('purchasedFrom')}
+                  isInvalid={formik.touched.purchasedFrom && formik.errors.purchasedFrom}
+                />
+                <Form.Control.Feedback type="invalid">{formik.errors.purchasedFrom}</Form.Control.Feedback>
+              </Col>
+
+              <Col md={6} className="mb-3">
+                <Form.Label>Total Amount</Form.Label>
+                <Form.Control
+                  type="number"
+                  value={formik.values.totalOverride || calculateTotalAmount(
+                    formik.values.amount,
+                    formik.values.quantity,
+                    formik.values.discount
+                  )}
+                  readOnly
+                />
+              </Col>
+            </Row>
+
+            <div className="text-end mt-3">
+              <Button type="submit" variant="warning">
+                Update Expense
+              </Button>
+            </div>
+          </Form>
+        );
+      }}
+    </Formik>
   );
 };
 
-export default Edit;
+export default EditExpense;

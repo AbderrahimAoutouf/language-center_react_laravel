@@ -28,7 +28,7 @@ class ApiController extends Controller
             // 'isActive' => 'required|boolean',
             'parent_nom' => 'string|max:254',
             // 'parent_prenom' => 'string|max:254',
-            'parent_cin' => 'required|string|max:254',
+            'parent_cin' => 'nullable|string|max:254',
             // 'parent_email' => 'string|email|max:254',
             // 'parent_adresse' => 'string|max:254',
             // 'parent_telephone' => 'string|max:254',

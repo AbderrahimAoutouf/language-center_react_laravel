@@ -18,6 +18,7 @@ class TeacherController extends Controller
     public function index()
     {
         $teachers = Teacher::all();
+        $teachers = Teacher::with('classes')->get();
         return TeacherResource::collection($teachers);
     }
 
@@ -35,7 +36,6 @@ class TeacherController extends Controller
                 'email' => 'nullable|email|unique:teachers,email',
                 'phone' => 'required|string|unique:teachers,phone',
                 'diploma' => 'nullable|string',
-                'F' => 'nullable|string',
                 'hourly_rate' => 'nullable|integer',
                 'birthday' => 'nullable|date',
                 'gender' => 'nullable|string',
@@ -113,7 +113,9 @@ class TeacherController extends Controller
                 'hourly_rate' => 'nullable|integer',
                 'birthday' => 'nullable|date',
                 'gender' => 'nullable|string',
-                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'contract_type' => 'required|string|in:hourly,monthly',
+                'monthly_salary' => 'nullable|numeric|required_if:contract_type,monthly'
             ]);
             if ($request->hasFile('avatar')) {
                 // Supprimer l'ancien avatar

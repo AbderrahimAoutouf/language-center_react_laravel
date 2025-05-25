@@ -1,0 +1,11 @@
+@media print {
+  @page {
+    size: B6;
+    margin: 0;
+  }
+  body {
+    width: 125mm;
+    height: 176mm;
+    font-size: 12px;
+  }
+}

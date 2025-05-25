@@ -11,6 +11,8 @@ use App\Http\Controllers\EtudiantController;
 use App\Http\Controllers\CoursController;
 use App\Http\Controllers\StudentsAttendanceController;
 use App\Http\Controllers\DaysController;
+use App\Http\Controllers\ReceiptController;
+
 
 use App\Http\Controllers\TimeTablesController;
 use App\Models\time_tables;
@@ -48,6 +50,8 @@ Route::get('/classes', 'App\Http\Controllers\ClassController@index');
 Route::post('/classes', 'App\Http\Controllers\ClassController@store');
 Route::get('/classes/{class_}', 'App\Http\Controllers\ClassController@show');
 Route::delete('/classes/{class_}', 'App\Http\Controllers\ClassController@destroy');
+Route::get('/classes/{class}/students', [ClassController::class, 'getStudents']);
+Route::get('/etudiants/{id}/receipt', [EtudiantController::class, 'generateReceipt']);
 
 Route::put('/cours/{cours}', 'App\Http\Controllers\CoursController@update');
 Route::get('/cours', 'App\Http\Controllers\CoursController@index');
@@ -86,6 +90,17 @@ Route::delete('/timeTable/{timeTable}', 'App\Http\Controllers\TimeTablesControll
 //Route::get('/timetable/class/{class_id}', 'TimetableController@getClassTimetable');
 
 
+// Receipt routes
+
+// Création d'un reçu
+Route::post('/receipts', [ReceiptController::class, 'store'])
+     ->middleware('auth:sanctum'); // Si vous utilisez l'authentification
+
+// Génération PDF
+Route::get('/receipts/{id}/pdf', [ReceiptController::class, 'generatePdf'])
+     ->middleware('auth:sanctum');
+
+
 //days
 Route::get('/days', 'App\Http\Controllers\DaysController@index');
 Route::get('/days/{id}', 'App\Http\Controllers\DaysController@show');
@@ -106,6 +121,7 @@ Route::get('/studentsAttendance', 'App\Http\Controllers\StudentsAttendanceContro
 Route::post('/studentsAttendance/{class_id}', 'App\Http\Controllers\StudentsAttendanceController@store');
 Route::put('/studentsAttendance/{class_id}', 'App\Http\Controllers\StudentsAttendanceController@update');
 Route::delete('/studentsAttendance/{class_id}', 'App\Http\Controllers\StudentsAttendanceController@destroy');
+Route::patch('/etudiants/{etudiant}/authorize-photo', [EtudiantController::class, 'authorizePhoto']);
 
 
 //presence Teacher
@@ -121,6 +137,8 @@ Route::post('/levels', 'App\Http\Controllers\LanguageLevelController@store');
 Route::get('/levels/{level}', 'App\Http\Controllers\LanguageLevelController@show');
 Route::put('/levels/{level}', 'App\Http\Controllers\LanguageLevelController@update');
 Route::delete('/levels/{level}', 'App\Http\Controllers\LanguageLevelController@destroy');
+
+
 
 //tests api
 Route::get('/tests', 'App\Http\Controllers\TestsController@index');

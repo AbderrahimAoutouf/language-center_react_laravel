@@ -32,6 +32,14 @@ class TeacherResource extends JsonResource
             'avatar' => $this->avatar ? asset("storage/{$this->avatar}") : null,
             'contract_type' => $this->contract_type,
             'monthly_salary' => $this->monthly_salary,
+            'classes' => $this->whenLoaded('classes', function () {
+                return $this->classes->map(function ($class) {
+                    return [
+                        'id' => $class->id,
+                        'name' => $class->name,
+                    ];
+                });
+            }),
         ];
     }
 }
