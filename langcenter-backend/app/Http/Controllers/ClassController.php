@@ -68,11 +68,14 @@ class ClassController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Class_ $class_)
-    {
-        return new ClassRessource($class_);
-    }
-
+    public function show($id)
+{
+    $class = Class_::with(['etudiants', 'teacher', 'cours'])
+        ->withCount('etudiants')
+        ->findOrFail($id);
+        
+    return new ClassRessource($class);
+}
 
     /**
      * Update the specified resource in storage.

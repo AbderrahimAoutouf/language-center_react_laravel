@@ -54,4 +54,8 @@ class Class_ extends Model
     {
         return $this->hasOne(time_tables::class, 'class_id', 'id');
     }
+     public function etudiants()
+    {
+        return $this->belongsToMany(Etudiant::class, 'inscrire_classes');
+    }
 }

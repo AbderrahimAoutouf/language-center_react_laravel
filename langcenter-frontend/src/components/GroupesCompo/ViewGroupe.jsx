@@ -21,21 +21,50 @@ export default function ViewGroupe() {
   const [variant, setVariant] = useState("info");
   const [activeTab, setActiveTab] = useState('details'); // 'details' | 'students' | 'schedule'
   const [searchTerm, setSearchTerm] = useState('');
+  
 
   // Fetch class details
   const fetchClassDetails = useCallback(async () => {
-    setPending(true);
-    try {
-      const response = await axios.get(`api/classes/${id}`);
-      setClassData(response.data.data);
-    } catch (error) {
-      console.error('Error fetching class details:', error);
-      setNotification("Failed to load class details");
-      setVariant("danger");
-    } finally {
-      setPending(false);
+  setPending(true);
+  try {
+    const response = await axios.get(`api/classes/${id}?include=etudiants`);
+    const classData = response.data.data;
+    
+    setClassData(classData);
+    
+    if (classData.etudiants) {
+      setStudents(classData.etudiants.map(student => ({
+        id: student.id,
+        first_name: student.prenom,
+        last_name: student.nom,
+        email: student.email,
+        phone: student.telephone,
+        date_of_birth: student.date_naissance,
+        address: student.adresse,
+        gender: student.sexe,
+        is_active: student.isActive,
+        parent_info: student.parent,
+        is_free: student.gratuit,
+        advance_payment: student.avance,
+        photo_authorized: student.photo_authorized,
+        level: student.level,
+        age_group: student.age_group,
+        classes: student.classes || [],
+        courses: student.cours || [],
+        age: student.date_naissance ? moment().diff(moment(student.date_naissance), 'years') : null,
+        enrollment_date: student.created_at || student.enrollment_date,
+        status: student.isActive ? 'Active' : 'Inactive'
+      })));
     }
-  }, [id]);
+  } catch (error) {
+    console.error('Error fetching class details:', error);
+    setNotification("Failed to load class details");
+    setVariant("danger");
+  } finally {
+    setPending(false);
+  }
+}, [id]);
+
 
   useEffect(() => {
     fetchClassDetails();
@@ -58,8 +87,6 @@ export default function ViewGroupe() {
     fetchClassSchedule();
   }, [fetchClassSchedule]);
 
- 
-
   // Alternative approach to fetch class data (from your provided code)
   const fetchClassData = useCallback(async () => {
     setPending(true);
@@ -71,13 +98,16 @@ export default function ViewGroupe() {
         id: item.id,
         name: item.name,
         schoolYear: item.school_year,
-        capacity: item.capacity,
+        //capacity: item.capacity,
         level: item.level,
         startDate: new Date(item.start_date).toLocaleDateString(),
         endDate: new Date(item.end_date).toLocaleDateString(),
         students: item.nb_etudiants,
         course: item.cours.title,
         teacher: item.teacher ? `${item.teacher.first_name} ${item.teacher.last_name}` : 'Not Assigned',
+        student: item.etudiants ? item.etudiants.map(student => 
+          `${student.prenom} ${student.nom}`
+        ) : [],
       }));
       
       // Find the class that matches our current ID
@@ -85,14 +115,35 @@ export default function ViewGroupe() {
       
       if (currentClass) {
         // Update our class data using this information
-        // This serves as a fallback if the direct class endpoint fails
         setClassData(currentClass);
         
-        // If we have student count but no actual student data, we can at least show the count
-     /*   if (students.length === 0 && currentClass.students) {
-          setNotification(`This class has ${currentClass.students} students, but detailed student data couldn't be loaded.`);
-          setVariant("warning");
-        }*/
+        // Set students data if available
+        if (currentClass.student && currentClass.student.length > 0) {
+          // Convert formatted student names back to objects for display
+          const studentObjects = currentClass.student.map((studentName, index) => ({
+            id: index + 1, // temporary ID
+            first_name: studentName.split(' ')[0],
+            last_name: studentName.split(' ').slice(1).join(' '),
+            email: null,
+            phone: null,
+            date_of_birth: null,
+            address: null,
+            gender: null,
+            is_active: true,
+            parent_info: null,
+            is_free: false,
+            advance_payment: 0,
+            photo_authorized: false,
+            level: null,
+            age_group: null,
+            classes: [],
+            courses: [],
+            age: null,
+            enrollment_date: null,
+            status: 'Active'
+          }));
+          setStudents(studentObjects);
+        }
       }
     } catch (error) {
       console.error("Error fetching class data:", error);
@@ -100,8 +151,9 @@ export default function ViewGroupe() {
       setVariant("danger");
     } finally {
       setPending(false);
+      setLoading(false);
     }
-  }, [id, students.length]);
+  }, [id]);
 
   // Generate calendar events
   useEffect(() => {
@@ -289,6 +341,7 @@ export default function ViewGroupe() {
                             ? `${classData.teacher.last_name} ${classData.teacher.first_name}` 
                             : (typeof classData.teacher === 'string' ? classData.teacher : "No Teacher Assigned")}
                         </div>
+
                       </div>
                     </div>
                   </div>
@@ -298,10 +351,10 @@ export default function ViewGroupe() {
                   <div className="card shadow-sm mb-4">
                     <div className="card-body">
                       <h4 className="card-title border-bottom pb-3">Additional Information</h4>
-                      <div className="row mb-3">
+                      {/* <div className="row mb-3">
                         <div className="col-4 text-muted">Capacity:</div>
                         <div className="col-8 font-weight-bold">{classData.capacity || 'N/A'}</div>
-                      </div>
+                      </div> */}
                       <div className="row mb-3">
                         <div className="col-4 text-muted">School Year:</div>
                         <div className="col-8 font-weight-bold">{classData.school_year || classData.schoolYear || 'N/A'}</div>
@@ -325,10 +378,10 @@ export default function ViewGroupe() {
                       <div className="row">
                         <div className="col-4 text-muted">Students:</div>
                         <div className="col-8 font-weight-bold">
-                          {students.length > 0 
-                            ? `${students.length} enrolled` 
-                            : (classData.students ? `${classData.students} enrolled` : 'N/A')}
-                        </div>
+  {students.length > 0 
+    ? `${students.length} enrolled` 
+    : (classData.nb_etudiants ? `${classData.nb_etudiants} enrolled` : 'N/A')}
+</div>
                       </div>
                     </div>
                   </div>
@@ -380,7 +433,7 @@ export default function ViewGroupe() {
                     className="btn btn-danger"
                     onClick={() => {
                       setError(null);
-                      fetchStudents();
+                      fetchClassData();
                     }}
                   >
                     Try again
@@ -407,7 +460,7 @@ export default function ViewGroupe() {
                     <div className="mt-3">
                       <button 
                         className="btn btn-outline-warning"
-                        onClick={fetchStudents}
+                        onClick={fetchClassData}
                       >
                         Try loading again
                       </button>
@@ -446,26 +499,35 @@ export default function ViewGroupe() {
                             </div>
                           )}
                           
-                          {student.date_of_birth && (
+                          {student.age && (
                             <div className="mb-2">
-                              <span className="text-muted me-2">Birth Date:</span>
-                              <span>{new Date(student.date_of_birth).toLocaleDateString()}</span>
+                              <span className="text-muted me-2">Age:</span>
+                              <span>{ student.age}</span>
+                            </div>
+                          )}
+                          {student.advance_payment && (
+                            <div className="mb-2">
+                              <span className="text-muted me-2">Avance:</span>
+                              <span>{student.advance_payment}</span>
+                            </div>
+                          )}
+                          {student.age_group && (
+                            <div className="mb-2">
+                              <span className="text-muted me-2">age_group:</span>
+                              <span>{student.age_group}</span>
                             </div>
                           )}
                           
-                          {student.address && (
-                            <div className="mb-2">
-                              <span className="text-muted me-2">Address:</span>
-                              <span>{student.address}</span>
-                            </div>
-                          )}
+                          {student.is_free !== undefined && (
+  <div className="mb-2">
+    <span className="text-muted me-2">is_free:</span>
+    <span>{student.is_free === 1 ? "Yes" : "No"}</span>
+  </div>
+)}
+
                         </div>
                       </div>
-                      <div className="card-footer bg-white border-top-0">
-                        <button className="btn btn-sm btn-outline-danger">
-                          View Details
-                        </button>
-                      </div>
+                      
                     </div>
                   </div>
                 ))}

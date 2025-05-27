@@ -138,7 +138,9 @@ const TableEtud = () => {
                 parent_id: student.parent?.id,
                 status: student.status !== undefined ? student.status : true,
                 level: student.level?.id,
-                levelName: student.level?.name || 'No level'
+                levelName: student.level?.name || 'No level',
+                avance: student.avance || 0 
+
             }));
 
             setData(formattedData);
@@ -208,7 +210,7 @@ const TableEtud = () => {
             const exportData = filteredData.map(({ avatar, parent_id, ...rest }) => rest);
             
             const parser = new Parser({ 
-                fields: ['id', 'name', 'gender', 'class', 'parents', 'levelName', 'status'] 
+                fields: ['id', 'name', 'gender', 'class', 'parents', 'levelName', 'avance', 'status'] 
             });
             const csv = parser.parse(exportData);
             saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `students_export_${new Date().toISOString().slice(0,10)}.csv`);
@@ -234,6 +236,7 @@ const TableEtud = () => {
                 Class: student.class,
                 Level: student.levelName,
                 Parent: student.parents,
+                Avance: student.avance ? `${student.avance} DH` : '0 DH',
                 Status: student.status ? 'Active' : 'Inactive'
             }));
             
@@ -434,6 +437,20 @@ const TableEtud = () => {
             sortable: true,
             sortFunction: (a, b) => a.class.localeCompare(b.class),
         },
+        {
+    name: 'Avance',
+    cell: row => (
+        <div className="text-center">
+            <span className={`badge ${row.avance > 0 ? 'bg-success' : 'bg-secondary'}`}>
+                {row.avance ? `${row.avance} DH` : '0 DH'}
+            </span>
+        </div>
+    ),
+    width: '120px',
+    center: true,
+    sortable: true,
+    sortFunction: (a, b) => (a.avance || 0) - (b.avance || 0),
+},
         {
             name: 'Parent',
             cell: row => (

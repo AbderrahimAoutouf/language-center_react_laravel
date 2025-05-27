@@ -45,6 +45,7 @@ class EtudiantController extends Controller
         'parent_adresse' => 'string|nullable',
         'parent_telephone' => 'string|max:13|regex:/^([0-9\s\-\+\(\)]*)$/|min:10|unique:parents,telephone|nullable',
         'emergency_contact' => 'nullable|string',
+        'avance' => 'nullable|numeric',
         'parent_relationship' => 'nullable|in:père,mère,tuteur,frère,sœur',
         'gratuit' => 'nullable|boolean',
         'photo_authorized' => 'required|boolean',
@@ -60,6 +61,8 @@ class EtudiantController extends Controller
     $etudiant->telephone = $data['telephone'] ?? null;
     $etudiant->gratuit = $data['gratuit'] ?? false;
     $etudiant->photo_authorized = $data['photo_authorized'];
+    $etudiant->avance = $data['avance'] ?? 0;
+
 
     $birthDate = new DateTime($data['date_naissance']);
     $now = new DateTime();
@@ -242,6 +245,7 @@ public function generateReceipt($id)
             'parent_cin' => 'string',
             'parent_telephone' => 'nullable|string|max:13|unique:parents,telephone',
             'emergency_contact' => 'nullable|string|min:3',
+            'avance' => 'nullable|numeric',
             'parent_relationship' => 'nullable|in:père,mère,tuteur,frère,sœur', 
             'photo_authorized' => 'required|boolean',
             'gratuit' => 'nullable|boolean',
@@ -277,6 +281,7 @@ public function generateReceipt($id)
         $etudiant->adresse = $request->adresse;
         $etudiant->telephone = $request->telephone;
         $etudiant->photo_authorized = $data['photo_authorized']; 
+        $etudiant->avance = $data['avance'] ?? $etudiant->avance;
         $etudiant->gratuit = $data['gratuit'] ?? false; 
         $birthDate = new DateTime($data['date_naissance']);
         $now = new DateTime();

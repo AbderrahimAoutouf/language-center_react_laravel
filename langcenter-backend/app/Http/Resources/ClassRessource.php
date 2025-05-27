@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Http\Resources\CoursResource;
 use App\Http\Resources\TeacherResource;
+use App\Http\Resources\EtudiantResource;
 
 class ClassRessource extends JsonResource
 {
@@ -24,10 +25,12 @@ class ClassRessource extends JsonResource
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,
             'level' => $this->level,
-            'nb_etudiants' => $this->etudiant()->count(),
+            'nb_etudiants' => $this->etudiants_count,
             'cours' => new CoursResource($this->cours),
             'teacher' => new TeacherResource($this->teacher),
+            'etudiants' => EtudiantResource::collection($this->whenLoaded('etudiants')),
             'event_color' => $this->event_color,
         ];
     }
+
 }

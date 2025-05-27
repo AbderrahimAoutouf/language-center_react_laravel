@@ -5,9 +5,9 @@ import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { UseStateContext } from "../../context/ContextProvider";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion"; // Import for animations
+import { motion, AnimatePresence } from "framer-motion";
 import { FaCheck, FaMoneyBillWave, FaPercentage, FaSchool } from "react-icons/fa";
-import { MdPayment, MdSwitchAccount, MdSecurityUpdateGood } from "react-icons/md";
+import { MdPayment, MdSwitchAccount } from "react-icons/md";
 import { toast } from "react-toastify";
 
 const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
@@ -16,6 +16,8 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
     const [classData, setClassData] = useState([]);
     const [total, setTotal] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [currentAdvance, setCurrentAdvance] = useState(0);
+    const [isLoadingAdvance, setIsLoadingAdvance] = useState(false);
     const [paymentSummary, setPaymentSummary] = useState({
         subtotal: 0,
         discount: 0,
@@ -38,7 +40,7 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
     const basePath = user?.role === 'admin' ? "" : 
                     user?.role === 'director' ? "/director" : "/secretary";
 
-    // Validation schema with improved error messages
+    // Validation schema
     const validationSchema = yup.object().shape({
         class: yup.string().when('course', {
             is: true,
@@ -55,7 +57,6 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
             .nullable()
             .min(0, "Discount can't be negative")
             .max(100, "Discount can't exceed 100%"),
-        insurrance: yup.boolean(),
         course: yup.boolean(),
         payment_method: yup.string()
             .required("Please select a payment method")
@@ -65,11 +66,10 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
     const formik = useFormik({
         initialValues: {
             class: '',
-            courseFeesPaid: '0',
-            negotiatedPrice: '0',
+            courseFeesPaid: 0,
+            negotiatedPrice: 0,
             discount: '',
             customDiscount: '',
-            insurrance: false,
             course: false,
             payment_method: '',
         },
@@ -92,10 +92,58 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
         fetchClasses();
     }, []);
 
+    // Fetch student advance when modal opens or selectedItem changes
+    useEffect(() => {
+        const fetchStudentAdvance = async () => {
+            if (showModal && selectedItem?.id) {
+                setIsLoadingAdvance(true);
+                try {
+                    console.log(`Fetching advance for student ID: ${selectedItem.id}`);
+                    const response = await axios.get(`/api/etudiants/${selectedItem.id}`);
+                    console.log('Student data response:', response.data);
+                    
+                    // Handle different response structures
+                    let studentData = response.data;
+                    if (response.data.data) {
+                        studentData = response.data.data; // If wrapped in data property
+                    }
+                    
+                    const advance = studentData.avance || 0;
+                    console.log('Extracted advance:', advance);
+                    
+                    setCurrentAdvance(Number(advance));
+                    
+                    // Automatically set the payment amount to the student's advance
+                    formik.setFieldValue('courseFeesPaid', Number(advance));
+                    
+                    toast.success(`Student advance loaded: $${advance}`);
+                } catch (error) {
+                    console.error('Error fetching student advance:', error);
+                    toast.error('Failed to load student advance');
+                    setCurrentAdvance(0);
+                    formik.setFieldValue('courseFeesPaid', 0);
+                } finally {
+                    setIsLoadingAdvance(false);
+                }
+            }
+        };
+
+        fetchStudentAdvance();
+    }, [showModal, selectedItem?.id]);
+
+    // Reset form when modal closes
+    useEffect(() => {
+        if (!showModal) {
+            formik.resetForm();
+            setCurrentAdvance(0);
+            setTotal(0);
+        }
+    }, [showModal]);
+
     // Find course fees based on class ID
     const findCoursFees = (classId) => {
         const classFees = classData.find((c) => c.id == classId);
-        return classFees ? classFees.cours.price : 0;
+        return classFees ? Number(classFees.cours.price) : 0;
     };
 
     // Calculate total fees when dependencies change
@@ -103,12 +151,9 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
         const calculateTotal = () => {
             let calculatedTotal = 0;
             
-            if (formik.values.insurrance) {
-                calculatedTotal += 200; // Insurance fee
-            }
-            
+            // Only calculate course fee
             if (formik.values.course) {
-                calculatedTotal += +findCoursFees(formik.values.class);
+                calculatedTotal += findCoursFees(formik.values.class);
             }
             
             return calculatedTotal;
@@ -131,25 +176,26 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
         formik.setFieldValue('negotiatedPrice', negotiatedPrice || 0);
         
         // Update payment summary
+        const courseFeesPaid = Number(formik.values.courseFeesPaid) || 0;
         setPaymentSummary({
             subtotal: newTotal,
             discount: discountAmount,
             total: negotiatedPrice,
-            remaining: negotiatedPrice - formik.values.courseFeesPaid
+            remaining: negotiatedPrice - courseFeesPaid
         });
     }, [
-        formik.values.insurrance, 
         formik.values.course, 
         formik.values.class, 
         formik.values.discount, 
         formik.values.customDiscount,
-        formik.values.courseFeesPaid
+        formik.values.courseFeesPaid,
+        classData
     ]);
 
     // Update discount when negotiated price changes
     useEffect(() => {
         if (total > 0) {
-            const negotiatedPrice = +formik.values.negotiatedPrice;
+            const negotiatedPrice = Number(formik.values.negotiatedPrice);
             const discountPercent = ((total - negotiatedPrice) / total) * 100;
             
             // Check if discount matches predefined values
@@ -161,6 +207,11 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
             }
         }
     }, [formik.values.negotiatedPrice, total]);
+
+    // Handle advance amount button click
+    const useAdvanceAmount = () => {
+        formik.setFieldValue('courseFeesPaid', currentAdvance);
+    };
 
     // Handle form submission
     async function handleSubmit(values) {
@@ -175,7 +226,7 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
             // Prepare inscription data
             let inscriptionData = {
                 etudiant_id: selectedItem.id,
-                negotiated_price: values.negotiatedPrice,
+                negotiated_price: Number(values.negotiatedPrice),
             };
             
             // Add class_id if course is selected
@@ -183,23 +234,31 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
                 inscriptionData.class_id = values.class;
             }
             
+            console.log('Inscription data:', inscriptionData);
+            
             // Create inscription
             const inscriptionResponse = await axios.post(
                 '/api/inscrire-classes', 
                 inscriptionData
             );
             
+            console.log('Inscription response:', inscriptionResponse.data);
+            
             // Register payment for the inscription
             if (inscriptionResponse.data && inscriptionResponse.data.id) {
                 const paymentData = {
-                    payment_amount: values.courseFeesPaid,
+                    payment_amount: Number(values.courseFeesPaid),
                     type: values.payment_method,
                 };
                 
-                await axios.post(
+                console.log('Payment data:', paymentData);
+                
+                const paymentResponse = await axios.post(
                     `/api/inscrires/${inscriptionResponse.data.id}/register-payment`,
                     paymentData
                 );
+                
+                console.log('Payment response:', paymentResponse.data);
                 
                 toast.success("Class added successfully!");
                 if (onSuccess) onSuccess();
@@ -207,7 +266,10 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
             }
         } catch (error) {
             console.error("Error adding class:", error);
-            toast.error(error.response?.data?.message || "Failed to add class");
+            const errorMessage = error.response?.data?.message 
+                || error.response?.data?.error 
+                || "Failed to add class";
+            toast.error(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -244,24 +306,38 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
                             animate="visible"
                             className="mb-4"
                         >
+                            {/* Student Advance Display */}
+                            <div className="p-3 bg-info text-white rounded mb-4">
+                                <h6 className="mb-2 d-flex align-items-center justify-content-between">
+                                    <span>Student Information</span>
+                                    {isLoadingAdvance && <Spinner size="sm" />}
+                                </h6>
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <p className="mb-0">
+                                        <strong>Current Advance: ${currentAdvance.toFixed(2)}</strong>
+                                    </p>
+                                    {currentAdvance > 0 && (
+                                        <Button 
+                                            size="sm" 
+                                            variant="light"
+                                            onClick={useAdvanceAmount}
+                                            disabled={isLoadingAdvance}
+                                        >
+                                            Use Advance
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
                             <div className="p-3 bg-light rounded mb-4">
-                                <h5 className="mb-3 border-bottom pb-2">Payment Options</h5>
+                                <h5 className="mb-3 border-bottom pb-2">Course Selection</h5>
                                 <Row>
-                                    <Col md={4}>
+                                    <Col md={6}>
                                         <Form.Check
                                             type="switch"
                                             id="course-switch"
                                             label={<div className="d-flex align-items-center"><FaSchool className="me-2 text-primary" /> Course</div>}
                                             {...formik.getFieldProps('course')}
-                                            className="mb-2"
-                                        />
-                                    </Col>
-                                    <Col md={4}>
-                                        <Form.Check
-                                            type="switch"
-                                            id="insurance-switch"
-                                            label={<div className="d-flex align-items-center"><MdSecurityUpdateGood className="me-2 text-success" /> Insurance</div>}
-                                            {...formik.getFieldProps('insurrance')}
                                             className="mb-2"
                                         />
                                     </Col>
@@ -305,7 +381,7 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
                                                 </InputGroup.Text>
                                                 <Form.Control
                                                     type="text"
-                                                    value={findCoursFees(formik.values.class)}
+                                                    value={`$${findCoursFees(formik.values.class).toFixed(2)}`}
                                                     disabled
                                                 />
                                             </InputGroup>
@@ -374,6 +450,9 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
                                                     {formik.errors.courseFeesPaid}
                                                 </Form.Control.Feedback>
                                             </InputGroup>
+                                            <Form.Text className="text-muted">
+                                                Student's advance amount: ${currentAdvance.toFixed(2)}
+                                            </Form.Text>
                                         </Form.Group>
                                         <Form.Group as={Col} md={6} className="mb-3">
                                             <Form.Label>Payment Method</Form.Label>
@@ -410,13 +489,13 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
                                 <h5 className="mb-3 border-bottom pb-2">Payment Summary</h5>
                                 <Row>
                                     <Col md={6}>
-                                        <p><strong>Subtotal:</strong> ${paymentSummary.subtotal}</p>
-                                        <p><strong>Discount:</strong> ${paymentSummary.discount}</p>
+                                        <p><strong>Subtotal:</strong> ${paymentSummary.subtotal.toFixed(2)}</p>
+                                        <p><strong>Discount:</strong> ${paymentSummary.discount.toFixed(2)}</p>
                                     </Col>
                                     <Col md={6}>
-                                        <p><strong>Total:</strong> ${paymentSummary.total}</p>
+                                        <p><strong>Total:</strong> ${paymentSummary.total.toFixed(2)}</p>
                                         <p className={paymentSummary.remaining > 0 ? "text-danger" : "text-success"}>
-                                            <strong>Remaining:</strong> ${paymentSummary.remaining}
+                                            <strong>Remaining:</strong> ${paymentSummary.remaining.toFixed(2)}
                                         </p>
                                     </Col>
                                 </Row>
@@ -431,7 +510,7 @@ const AddClass = ({ showModal, handleClose, selectedItem, onSuccess }) => {
                     <Button 
                         variant="primary" 
                         type="submit" 
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isLoadingAdvance}
                         className="d-flex align-items-center"
                     >
                         {isSubmitting ? (

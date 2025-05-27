@@ -34,6 +34,7 @@ class Etudiant extends Model
         'age_group',
         'emergency_contact',
         'gratuit',
+        'avance',
         'photo_authorized'
     ];
 

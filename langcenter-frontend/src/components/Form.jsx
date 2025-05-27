@@ -1,1363 +1,757 @@
 import { useFormik } from 'formik';
-import { useState,useEffect } from 'react';
-import { Form } from 'react-bootstrap';
-import Button from 'react-bootstrap/Button';
-import Col from 'react-bootstrap/Col';
-import Row from 'react-bootstrap/Row';
-import { InputGroup } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { Form, Button, Col, Row, Alert } from 'react-bootstrap';
 import * as yup from 'yup';
 import axios from '../api/axios';
-import {useNavigate} from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { UseStateContext } from '../context/ContextProvider';
 import countriesData from '../data/countries+states+cities.json';
-import AsyncSelect from 'react-select/async';
-import Alert from 'react-bootstrap/Alert';
 
-function FormC() {
+// Constants
+const MINIMUM_AGE = 18;
+
+
+function StudentRegistrationForm() {
   const navigate = useNavigate();
-  const [testPrice, setTestPrice] = useState(0);
-  const [tests, setTests] = useState([]);
-  const [customDiploma, setCustomDiploma] = useState("");
+  const { user, setNotification, setVariant } = UseStateContext();
+  
+  // State management
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedState, setSelectedState] = useState(null);
-  const {user,setNotification,setVariant} = UseStateContext();
-  const [underAge,setUnderAge] = useState(false);
-  const [total,setTotal] = useState(0);
-  const [parents, setParents] = useState([]);
-    const [selectedParent, setSelectedParent] = useState(null);
-    const [showParent, setShowParent] = useState(true);
-  const [selectedExistingParent, setSelectedExistingParent] = useState(null);
-  let x = ""
-  if (user && user.role==='admin')
-  {
-    x = ""
-  } else if (user && user.role==='director')
-  {
-    x="/director"
-  }else {
-    x="/secretary"
-  }
-  const [classData, setClassData] = useState([]);
-    // Fetch available classes and levels from the database
-  useEffect(() => {
-    axios.get('/api/classes').then((res) => {
-      console.log("Class data structure:", res.data);
-      setClassData(res.data);
-     
-    });
-  }, []);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isUnderAge, setIsUnderAge] = useState(false);
+  const [showParentForm, setShowParentForm] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-useEffect(() => {
-  setIsLoading(true);
-  axios.get('/api/classes').then((res) => {
-    setClassData(res.data);
-    setIsLoading(false);
-  }).catch(err => {
-    console.error("Error loading class data:", err);
-    setIsLoading(false);
-  });
-}, []);
-
-
-useEffect(() => {
-  axios.get('/api/parents')
-      .then(res => setParents(res.data));
-}, []);
-
-// Gestion de la recherche
-const searchParents = async (input) => {
-  const res = await axios.post('/api/parents/search', { q: input });
-  return res.data;
-};
-
-// Archiver un parent
-const archiveParent = (parentId) => {
-  axios.patch(`/api/parents/${parentId}/archive`)
-      .then(() => {
-          // Rafraîchir la liste
-      });
-};
-
-
-
-  // Fetch available tests from the database
-  useEffect(() => {
-    axios.get('/api/tests').then((res) => {
-      console.log("Tests API response:", res.data); // Log actual response structure
-      
-      // First check if response contains direct array of tests
-      if (Array.isArray(res.data)) {
-        const firstTest = res.data[0];
-        if (firstTest?.price !== undefined) {
-          setTestPrice(Number(firstTest.price));
-        }
-        setTests(res.data);
-      }
-      // Then check for nested data array
-      else if (res.data?.data && Array.isArray(res.data.data)) {
-        const firstTest = res.data.data[0];
-        if (firstTest?.price !== undefined) {
-          setTestPrice(Number(firstTest.price));
-        }
-        setTests(res.data.data);
-      }
-      else {
-        console.warn("Unexpected tests response structure:", res.data);
-        setTestPrice(0);
-        setTests([]);
-      }
-    }).catch(error => {
-      console.error("Error fetching tests:", error);
-      setTestPrice(0);
-      setTests([]);
-    });
-  }, []);
-  
-  // Helper function to find price in different places in the response
-  const findPriceInResponse = (response) => {
-    // Check multiple possible response structures
-    const testsArray = 
-      response.data || // Direct array
-      response.data?.data || // Nested data array
-      response.data?.tests || // Tests property
-      [];
-    
-    if (testsArray.length > 0 && testsArray[0].price) {
-      return Number(testsArray[0].price);
+  // User role-based routing
+  const getBaseRoute = () => {
+    switch (user?.role) {
+      case 'admin': return '';
+      case 'director': return '/director';
+      default: return '/secretary';
     }
-    if (response.data?.price) {
-      return Number(response.data.price);
-    }
-    return null;
   };
 
-
-
-  useEffect(() => {
-      setCountries(countriesData);
-    }, []);
+  // Form validation schema
+  const validationSchema = yup.object().shape({
+    firstName: yup.string()
+      .min(2, 'Too short')
+      .max(50, 'Too long')
+      .required('First name is required'),
+    lastName: yup.string()
+      .min(2, 'Too short')
+      .max(50, 'Too long')
+      .required('Last name is required'),
+    gender: yup.string()
+      .oneOf(['female', 'male'], 'Please select a gender')
+      .required('Gender is required'),
+    dateofBirth: yup.date()
+      .max(new Date(), 'Birth date cannot be in the future')
+      .required('Date of birth is required'),
+    email: yup.string().email('Invalid email format'),
+    phone: yup.string().min(9, 'Phone number too short'),
+    emergencyContact: yup.string().min(9, 'Emergency contact too short'),
+    
+    // Guardian fields (conditional validation)
+    guardfName: yup.string().when('isUnderAge', {
+      is: true,
+      then: () => yup.string().required('Guardian first name is required for minors'),
+      otherwise: () => yup.string()
+    }),
+    guardLName: yup.string().when('isUnderAge', {
+      is: true,
+      then: () => yup.string().required('Guardian last name is required for minors'),
+      otherwise: () => yup.string()
+    }),
+    guardPhone: yup.string().when('isUnderAge', {
+      is: true,
+      then: () => yup.string().min(9, 'Guardian phone too short').required('Guardian phone is required for minors'),
+      otherwise: () => yup.string()
+    }),
+    guardCin: yup.string()
+      .min(2, 'CIN too short')
+      .max(8, 'CIN too long'),
+    guardEmail: yup.string().email('Invalid email format'),
+    parentRelationship: yup.string(),
+    
+     // Advance payment validation
+  courseFeesPaid: yup.number()
+  .transform((value, originalValue) => {
+    // Convertir en nombre si c'est une chaîne
+    return originalValue === '' ? 0 : Number(originalValue);
+  })
+  .min(0, 'Advance payment cannot be negative')
+  .when('isFree', {
+    is: false,
+    then: () => yup.number()
+      .transform((value, originalValue) => originalValue === '' ? 0 : Number(originalValue))
+      .min(0, 'Advance payment cannot be negative'),
+    otherwise: () => yup.number()
+      .transform((value, originalValue) => originalValue === '' ? 0 : Number(originalValue))
+  }),
   
-    useEffect(() => {
-      if (selectedCountry) {
-        setStates(selectedCountry.states);
-      } else {
-        setStates([]);
-      }
-      setCities([]);
-    }, [selectedCountry]);
   
-    useEffect(() => {
-      if (selectedState) {
-        setCities(selectedState.cities);
-      } else {
-        setCities([]);
-      }
-    }, [selectedState]);
+    
+    photoRights: yup.boolean()
+  });
+
+  // Formik setup - MOVED BEFORE useEffect hooks that depend on it
   const formik = useFormik({
-        initialValues:{
-        firstName: ``,
-        lastName: ``,
-        class: ``,
-        gender: ``,
-        address: ``,
-        country: '',
+    initialValues: {
+      firstName: '',
+      lastName: '',
+      gender: '',
+      dateofBirth: '',
+      email: '',
+      phone: '',
+      emergencyContact: '',
+      country: '',
       state: '',
       city: '',
       street: '',
-        dateofBirth: ``,
-        active: false,
-        adult: ``,
-        email: ``,
-        phone: ``,
-        emergencyContact: ``,
-        guardfName:``,
-        guardLName: ``,
-        guardGender: ``,
-        guardCin: ``,
-        guardEmail: ``,
-        guardPhone: ``,
-        guardBirthDate: ``,
-        guardAddress: ``,
-        parentRelationship: ``,
-        courseName: ``,
-        courseFeesPaid: ``,
-        negotiatedPrice: ``,
-        discount: ``,
-        customDiscount: ``,
-        insurrance: false,
-        course: false,
-        testLevel: false,
-        file: '',
-        test: ``,
-        testFees: 100,
-        testFeesPaid: 0,
-        methode: ``,
-        isFree: false,
-        photoRights: false,
-      },
-    validationSchema: yup.object().shape({
-    firstName: yup.string()
-    .min(3, 'Too Short!')
-    .max(50, 'Too Long!')
-    .required('required'),
-    lastName: yup.string()
-    .min(3, "Too short")
-    .max(50, 'Too Long!')
-    .required('required'),
-    class: yup.string().required("required"),
-      gender: yup.string().oneOf(['female','male']).required('required'),
-      address: yup.string(),
-      country: yup.string(),
-      state: yup.string(),
-      city: yup.string(),
-      street: yup.string(),
-      dateofBirth: yup.date().required('required'),
-      adult: yup.boolean().oneOf[true,false],
-      email: yup.string().email('Invalid email'),
-      phone: yup.string().min(9,'to short to be a valid phone number'),
-      guardfName: yup.string(),
-      guardLName: yup.string(),
-      guardCin: yup.string().min(2,'to short to be a valid CIN').max(8,'to long to be a valid CIN'),
-      guardEmail: yup.string().email('invalid Email'),
-      guardPhone: yup.string().min(9,'to short to be a valid phone number').required('Required for minors'),
-      emergencyContact: yup.string(),
-      parentRelationship: yup.string(),
-      guardGender: yup.string(),
-      guardBirthDate: yup.date(),
-      guardAddress: yup.string(),
-      courseName: yup.string().oneOf(['english','talks']).required('required'),
-      courseFeesPaid: yup.number().required('required'),
-      negotiatedPrice: yup.number().required('required').nonNullable(),
-      file: yup.mixed(),
-      discount: yup.string(),
-      customDiscount: yup.number().max(100).min(0),
-      test: yup.string(),
-      testFees: yup.number(),
-      testFeesPaid: yup.number(),
-      methode: yup.string(),
-      isFree: yup.boolean(),
-      photoRights: yup.boolean(),
       
-    }),
-  onSubmit: (values) => {
-    console.log("wewe are here");
-}
-});
-
-
-
-  // Find the course fees based on the class id
-  const findCoursFees = (classId) => {
-    if (isLoading || !classData.length) return 0;
-    
-    const classFees = classData.find((c) => c.id == classId);
-    if (classFees && classFees.cours && classFees.cours.price !== undefined){
-      return classFees.cours.price;
-    } else {
-      return 0;
-    }
-  }
-  // request to create a new student
-  const handleSubmit = async(e) => {
-    e.preventDefault();
-    let response = [];
-    let response2 = [];
-    let response3 = [];
-    console.log(formik.values);
-    let adultData = {
-      prenom: formik.values.firstName,
-      nom: formik.values.lastName,
-      date_naissance: formik.values.dateofBirth,
-      sexe: formik.values.gender,
-      email: formik.values.email,
-      telephone: formik.values.phone,
-      emergency_contact: formik.values.emergencyContact,
-      parent_relationship : formik.values.parentRelationship,
-      adresse: `${formik.values.street}, ${formik.values.city}, ${formik.values.state}, ${formik.values.country}`,
-      adulte: formik.values.adult,
-      underAge: false,
-      gratuit: formik.values.isFree,
-      photo_authorized: formik.values.photoRights, 
-    }
-    let etudiantData = adultData;
-    if (underAge === true){
-       etudiantData = {
-      ...adultData,
-      parent_prenom: formik.values.guardfName,
-      parent_nom: formik.values.guardLName,
-      parent_email: formik.values.guardEmail,
-      parent_telephone:formik.values.guardPhone,
-      parent_cin: formik.values.guardCin,
-      parent_sexe :formik.values.guardGender,
-      parent_adresse: formik.values.address,
-      parent_date_naissance:formik.values.guardBirthDate,
-      underAge:true,
-      }
+      // Guardian information
+      guardfName: '',
+      guardLName: '',
+      guardGender: '',
+      guardCin: '',
+      guardEmail: '',
+      guardPhone: '',
+      guardBirthDate: '',
+      guardAddress: '',
+      parentRelationship: '',
       
-    }
-    try{
-      response = await axios.post('/api/etudiants',etudiantData);
-      if (response && response.data && response.data.data) {
-        const etudiantId = response.data.data.id;
-      } else {
-        console.error("Invalid response structure:", response); }
-    } catch (error) {
-      console.log(error);
-      if (error.response?.data) {
-        const serverErrors = error.response.data;
-        // Handle different server error formats
-        const fieldErrors = serverErrors.errors || serverErrors.message || serverErrors;
-        formik.setErrors({
-          ...fieldErrors,
-          phone: fieldErrors.telephone,
-          guardPhone: fieldErrors.parent_telephone,
-          guardCin: fieldErrors.parent_cin,
-          guardEmail: fieldErrors.parent_email
-        });
-      }
-      setNotification("Failed to add student: " + (error.response?.data?.message || "Validation error"));
-      setVariant("danger");
-      setTimeout(() => {
-        setNotification('');
-        setVariant('');
-      }, 3000);
-      return; // Prevent further execution
-    }
+      // Advance payment information
+      courseFeesPaid: 0,
 
-    console.log(response.data.data.id);
-    const etudiantId = response.data.data.id;
-    console.log("Response received:", response);
+      isFree: false,
+      photoRights: false,
+      isUnderAge: false,
+    },
+    validationSchema,
+    onSubmit: handleFormSubmit
+  });
 
-        let inscriptionData = {
-      etudiant_id: etudiantId,
-      class_id: formik.values.class,
-      negotiated_price: formik.values.negotiatedPrice,
-    }
-    if (formik.values.insurrance == true || formik.values.testLevel == true || formik.values.course == true){
-    if (formik.values.course === true){
-    try{
-      response2 = await axios.post('/api/inscrire-classes',inscriptionData);
-      console.log(response2);
-    }catch (error) {
-      console.log(error);
-    }
-    
-    const inscriptionId = response2.data.id;
-    const paymentData = {
-      payment_amount: formik.values.courseFeesPaid,
-      type: formik.values.methode,
-    }
-    try{
-      response3 = await axios.post(`/api/inscrires/${inscriptionId}/register-payment`,paymentData);
-    } catch (error) {
-      console.log(error);
-    }
-  }
-    
-    if (formik.values.testLevel === true){
-      let responseTestData = {
-        test_id: 1,
-        student_id: etudiantId,
-      };
-      let responseTest = [];
-      try {
-        responseTest = await axios.post('/api/register',responseTestData);
-        console.log(responseTest);
-      } catch (error) {
-        console.log(error);
-      }
-      let registerId = responseTest.data.id;
-      const paymentData = {
-        amount : formik.values.testFeesPaid,
-        register_id: registerId,
-        payment_method: "cash",
-    }
-    let responseTestPayment = [];
-    try{
-      responseTestPayment = await axios.post('/api/testPayment',paymentData);
-      console.log(responseTestPayment);
-    } catch (error) {
-      console.log(error);
-    }
+  // Data fetching effects
+  useEffect(() => {
+    setCountries(countriesData);
+  }, []);
 
-  }
-   if (formik.values.insurrance == true || formik.values.testLevel == true || formik.values.course == true) {
+  
+
+  // Location handling effects
+  useEffect(() => {
+    if (selectedCountry) {
+      setStates(selectedCountry.states || []);
+      setCities([]);
+      formik.setFieldValue('state', '');
+      formik.setFieldValue('city', '');
+    }
+  }, [selectedCountry, formik]);
+
+  useEffect(() => {
+    if (selectedState) {
+      setCities(selectedState.cities || []);
+      formik.setFieldValue('city', '');
+    }
+  }, [selectedState, formik]);
+
+  // Auto-fill parent information if exists
+  useEffect(() => {
+    if (isUnderAge && (formik.values.guardCin?.length >= 2 || formik.values.guardPhone?.length >= 9)) {
+      const debounceTimer = setTimeout(() => {
+        searchExistingParent();
+      }, 500);
+      return () => clearTimeout(debounceTimer);
+    }
+  }, [formik.values.guardCin, formik.values.guardPhone, isUnderAge]);
+
+  // API Functions
+  
+  const searchExistingParent = async () => {
     try {
-      console.log(`Attempting to download PDF for student ID: ${etudiantId}`);
-      
-      const pdfResponse = await axios.get(`/api/etudiants/${etudiantId}/receipt`, {
-        responseType: 'blob',
-        timeout: 30000, // 30 second timeout
-        headers: {
-          'Accept': 'application/pdf',
-        }
+      const response = await axios.post('/api/parents/search', {
+        cin: formik.values.guardCin,
+        telephone: formik.values.guardPhone
       });
 
-      console.log('PDF Response received:', pdfResponse);
-      console.log('PDF Response headers:', pdfResponse.headers);
-      console.log('PDF Response data type:', typeof pdfResponse.data);
-      console.log('PDF Response data size:', pdfResponse.data.size);
-
-      // Check if we actually received a PDF
-      if (!pdfResponse.data || pdfResponse.data.size === 0) {
-        throw new Error('Received empty PDF response');
+      if (response.data.length > 0) {
+        const parent = response.data[0];
+        fillParentInformation(parent);
+        showNotification('Parent information found and filled automatically', 'success');
       }
+    } catch (error) {
+      console.error('Parent search error:', error);
+    }
+  };
 
-      // Create blob with explicit PDF mime type
-      const blob = new Blob([pdfResponse.data], { 
-        type: 'application/pdf' 
+  const fillParentInformation = (parent) => {
+    const addressParts = parent.adresse?.split(', ') || [];
+    formik.setValues({
+      ...formik.values,
+      guardfName: parent.prenom || '',
+      guardLName: parent.nom || '',
+      guardGender: parent.sexe || '',
+      guardEmail: parent.email || '',
+      guardBirthDate: parent.date_naissance || '',
+      guardAddress: parent.adresse || '',
+      parentRelationship: parent.relationship || '',
+      street: addressParts[0] || '',
+      city: addressParts[1] || '',
+      state: addressParts[2] || '',
+      country: addressParts[3] || ''
+    });
+    setShowParentForm(false);
+  };
+
+  // Utility functions
+  const calculateAge = (birthDate) => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    const age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      return age - 1;
+    }
+    return age;
+  };
+
+  const showNotification = (message, variant = 'info') => {
+    setNotification(message);
+    setVariant(variant);
+    setTimeout(() => {
+      setNotification('');
+      setVariant('');
+    }, 3000);
+  };
+
+  const handleDateOfBirthChange = (e) => {
+    const selectedDate = e.target.value;
+    const age = calculateAge(selectedDate);
+    const underAge = age < MINIMUM_AGE;
+    
+    setIsUnderAge(underAge);
+    formik.setFieldValue('dateofBirth', selectedDate);
+    formik.setFieldValue('isUnderAge', underAge);
+  };
+
+  const handleCountryChange = (e) => {
+    const countryName = e.target.value;
+    const country = countries.find(c => c.name === countryName);
+    setSelectedCountry(country);
+    formik.setFieldValue('country', countryName);
+  };
+
+  const handleStateChange = (e) => {
+    const stateName = e.target.value;
+    const state = states.find(s => s.name === stateName);
+    setSelectedState(state);
+    formik.setFieldValue('state', stateName);
+  };
+
+  // PDF Receipt generation
+  const generateReceipt = async (studentId) => {
+    try {
+      const response = await axios.get(`/api/etudiants/${studentId}/receipt`, {
+        responseType: 'blob',
+        timeout: 30000,
+        headers: { 'Accept': 'application/pdf' }
       });
 
-      console.log('Blob created:', blob);
-      console.log('Blob size:', blob.size);
-      console.log('Blob type:', blob.type);
-
-      // Create download link
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
+      
       link.href = url;
-      link.download = `receipt-${etudiantId}.pdf`;
+      link.download = `receipt-${studentId}.pdf`;
       link.style.display = 'none';
       
-      // Add to DOM, click, then remove
       document.body.appendChild(link);
       link.click();
       
-      // Cleanup
       setTimeout(() => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
       }, 100);
-
-      console.log('PDF download initiated successfully');
       
     } catch (error) {
-      console.error("PDF download error details:", error);
-      console.error("Error response:", error.response);
-      console.error("Error message:", error.message);
-      
-      let errorMessage = "Échec du téléchargement du reçu PDF";
-      
-      if (error.response) {
-        console.error("Server responded with:", error.response.status, error.response.statusText);
-        console.error("Response data:", error.response.data);
-        
-        if (error.response.status === 404) {
-          errorMessage = "Reçu non trouvé (404)";
-        } else if (error.response.status === 500) {
-          errorMessage = "Erreur serveur lors de la génération du PDF (500)";
-        } else {
-          errorMessage = `Erreur serveur: ${error.response.status} ${error.response.statusText}`;
-        }
-      } else if (error.request) {
-        errorMessage = "Pas de réponse du serveur";
-      } else {
-        errorMessage = `Erreur: ${error.message}`;
-      }
-      
-      setNotification(errorMessage);
-      setVariant("danger");
-      
-      // Don't return here - let the success message show even if PDF fails
-    }    }
-
-  }
- 
-    setNotification("Student added successfully");
-    setVariant("success");
-    setTimeout(() => {
-      setNotification("");
-      setVariant("");
-      navigate(`${x}/student`);
-    }, 3000);
-    
-   
-    
-  }
-  useEffect(() => {
-    if (formik.values.isFree) {
-      formik.setValues({
-        ...formik.values,
-        insurrance: false,
-        course: false,
-        testLevel: false,
-        courseFeesPaid: 0,
-        testFeesPaid: 0,
-        negotiatedPrice: 0,
-        discount: 0,
-        customDiscount: 0,
-        isFree: true // Force la valeur
-      });
-    }
-  }, [formik.values.isFree]);
-
-
-  // Ajouter ce useEffect pour détecter les changements sur le CIN ou téléphone
-useEffect(() => {
-  const fetchParent = async () => {
-    try {
-      if ((formik.values.guardCin?.length >= 2) || (formik.values.guardPhone?.length >= 9)) {
-        const res = await axios.post('/api/parents/search', {
-          cin: formik.values.guardCin,
-          telephone: formik.values.guardPhone
-        });
-
-        if (res.data.length > 0) {
-          const parent = res.data[0];
-          formik.setValues({
-            ...formik.values,
-            guardfName: parent.prenom,
-            guardLName: parent.nom,
-            guardGender: parent.sexe,
-            guardEmail: parent.email,
-            guardBirthDate: parent.date_naissance,
-            guardAddress: parent.adresse,
-            parentRelationship: parent.relationship,
-            
-            // Découper l'adresse existante
-            country: parent.adresse?.split(', ')[3] || '',
-            state: parent.adresse?.split(', ')[2] || '',
-            city: parent.adresse?.split(', ')[1] || '',
-            street: parent.adresse?.split(', ')[0] || ''
-          });
-
-          // Désactiver l'édition après remplissage
-          setShowParent(false);
-          setNotification("Parent existant trouvé !");
-          setVariant("success");
-          setTimeout(() => {
-            setNotification(null);
-          }, 3000);
-        }
-      }
-    } catch (error) {
-      console.error("Parent search error:", error);
+      console.error('PDF generation error:', error);
+      showNotification('Failed to generate receipt', 'danger');
     }
   };
 
-  // Délai pour éviter des requêtes excessives
-  const delayDebounce = setTimeout(() => {
-    if (underAge) fetchParent();
-  }, 500);
+  // Form submission handler
+  async function handleFormSubmit(values) {
+    setIsLoading(true);
+    
+    try {
+      // Prepare student data with advance payment
+      const studentData = {
+        prenom: values.firstName,
+        nom: values.lastName,
+        date_naissance: values.dateofBirth,
+        sexe: values.gender,
+        email: values.email,
+        telephone: values.phone,
+        emergency_contact: values.emergencyContact,
+        adresse: `${values.street}, ${values.city}, ${values.state}, ${values.country}`,
+        gratuit: formik.values.isFree,
+        adulte: !isUnderAge,
+        underAge: isUnderAge,
+        photo_authorized: values.photoRights,
+        // NOUVELLE COLONNE: Sauvegarder l'avance dans la table etudiant
+        avance: !values.isFree ? Number(values.courseFeesPaid) : 0,
+        
+        // Guardian information (if under age)
+        ...(isUnderAge && {
+          parent_prenom: values.guardfName,
+          parent_nom: values.guardLName,
+          parent_email: values.guardEmail,
+          parent_telephone: values.guardPhone,
+          parent_cin: values.guardCin,
+          parent_sexe: values.guardGender,
+          parent_adresse: values.guardAddress,
+          parent_date_naissance: values.guardBirthDate,
+          parent_relationship: values.parentRelationship,
+        })
+      };
 
-  return () => clearTimeout(delayDebounce);
-}, [formik.values.guardCin, formik.values.guardPhone, underAge]);
+      // Create student
+      const studentResponse = await axios.post('/api/etudiants', studentData);
+      const studentId = studentResponse.data?.data?.id;
 
-  // calculate the total fees
-  //+findCoursFees(formik.values.class) * (1-((formik.values.discount == 'custom' ? formik.values.customDiscount : formik.values.discount) /100))
-  useEffect(() => {
-    setTotal(0);
-    if (formik.values.insurrance === true){
-      setTotal((prev) => prev + 100);
+      if (!studentId) {
+        throw new Error('Invalid student creation response');
+      }
+
+      
+
+      // Generate receipt
+      await generateReceipt(studentId);
+
+      showNotification('Student registered successfully!', 'success');
+      
+      setTimeout(() => {
+        navigate(`${getBaseRoute()}/student`);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Form submission error:', error);
+      handleSubmissionError(error);
+    } finally {
+      setIsLoading(false);
     }
-    if (formik.values.course === true){
-      setTotal((prev) => prev + (+findCoursFees(formik.values.class)  * (1-((formik.values.discount == 'custom' ? formik.values.customDiscount : formik.values.discount) /100)) || prev));
-    }
-    if (formik.values.testLevel === true){
-      setTotal((prev) => prev + +testPrice);
-    }
-    setTotal(
-    (prev) => Math.round(prev,2)
-    )
-  },[formik.values.insurrance,formik.values.course,formik.values.testLevel,formik.values.class,formik.values.discount,formik.values.customDiscount]);
-  useEffect(() => {
-    let res = 0;
-    if (formik.values.discount === 'custom'){
-      res = formik.values.customDiscount;
-    } else {
-      res = formik.values.discount;
-    }
-    formik.setFieldValue('negotiatedPrice',Math.round(+findCoursFees(formik.values.class) - res * +findCoursFees(formik.values.class) / 100,2) || 0);
-  },[total,formik.values.discount,formik.values.customDiscount]);
+  }
 
-  useEffect (() => {
-    let negotiatedPrice = formik.values.negotiatedPrice;
-    let res = (Math.round(+findCoursFees(formik.values.class),2) - +negotiatedPrice)/(Math.round(+findCoursFees(formik.values.class),2)) * 100;
-    switch (res) {
-      case 10:
-      case 20:
-      case 30:
-          formik.setFieldValue('discount',+res);
-        break;
-      default:
-          formik.setFieldValue('discount','custom');
-          formik.setFieldValue('customDiscount',+res);
-        break;
+ 
+
+  const handleSubmissionError = (error) => {
+    if (error.response?.data) {
+      const serverErrors = error.response.data;
+      const fieldErrors = serverErrors.errors || serverErrors.message || serverErrors;
+      
+      // Map server field names to form field names
+      const mappedErrors = {
+        ...fieldErrors,
+        phone: fieldErrors.telephone,
+        guardPhone: fieldErrors.parent_telephone,
+        guardCin: fieldErrors.parent_cin,
+        guardEmail: fieldErrors.parent_email
+      };
+      
+      formik.setErrors(mappedErrors);
     }
-  },[formik.values.negotiatedPrice]);
+    
+    const errorMessage = error.response?.data?.message || 'Failed to register student';
+    showNotification(errorMessage, 'danger');
+  };
 
-
-
-  
-  
   return (
-        <Form noValidate onSubmit={handleSubmit}>
-          <Row className='mb-3'>
-            <h3>Student</h3>
-              <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1032"
-              className='position-relative'
-              >
-              <Form.Label>First name <span className='text-danger'>*</span></Form.Label>
-              <Form.Control
-                type="text"
-                name="firstName"
-                placeholder="first name"
-                {...formik.getFieldProps('firstName')}
-                isInvalid={formik.touched.firstName && formik.errors.firstName}
+    <div className="container mt-4">
+      <h2 className="mb-4">Student Registration</h2>
+      
+      <Form noValidate onSubmit={formik.handleSubmit}>
+        {/* Student Information Section */}
+        <div className="card mb-4">
+          <div className="card-header">
+            <h4>Student Information</h4>
+          </div>
+          <div className="card-body">
+            <Row className="mb-3">
+              <Form.Group as={Col} md="4" className="position-relative">
+                <Form.Label>First Name <span className="text-danger">*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  name="firstName"
+                  placeholder="Enter first name"
+                  {...formik.getFieldProps('firstName')}
+                  isInvalid={formik.touched.firstName && !!formik.errors.firstName}
                 />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.firstName}</Form.Control.Feedback>
+                <Form.Control.Feedback type="invalid" tooltip>
+                  {formik.errors.firstName}
+                </Form.Control.Feedback>
               </Form.Group>
-              <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1"
-              className='position-relative'
-              >
-              <Form.Label>Last name <span className='text-danger'>*</span></Form.Label>
-              <Form.Control
-                type="text"
-                name="lastName"
-                placeholder="last name"
-                {...formik.getFieldProps('lastName')}
-                isInvalid={formik.touched.lastName && formik.errors.lastName}
+
+              <Form.Group as={Col} md="4" className="position-relative">
+                <Form.Label>Last Name <span className="text-danger">*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  name="lastName"
+                  placeholder="Enter last name"
+                  {...formik.getFieldProps('lastName')}
+                  isInvalid={formik.touched.lastName && !!formik.errors.lastName}
                 />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.lastName}</Form.Control.Feedback>
-            </Form.Group>
-            
-              <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Gender</Form.Label>
-              <Form.Select
-              component="select"
-              id="gender"
-              name="gender"
-              {...formik.getFieldProps('gender')}
-              isInvalid={formik.touched.gender && formik.errors.gender}
-              >
-              <option value=''>choose Gender</option>
-              <option value='female'>female</option>
-              <option value='male'>male</option>
-              </Form.Select>
-              <Form.Control.Feedback type="invalid" tooltip>{formik.errors.gender}</Form.Control.Feedback>
+                <Form.Control.Feedback type="invalid" tooltip>
+                  {formik.errors.lastName}
+                </Form.Control.Feedback>
               </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12"
-              className="position-relative">
-            <Form.Label>Date of Birth<span className='text-danger'>*</span></Form.Label>
-            <Form.Control
-            type="date"
-            name="dateofbirth"
-            {...formik.getFieldProps('dateofBirth')}
-            isInvalid={formik.touched.dateofBirth && formik.errors.dateofBirth}
-            onChange={(e) => {
-              const selectedDate = new Date(e.target.value);
-              const currentDate = new Date();
-              const ageDifferenceInMilliseconds = currentDate - selectedDate;
-              const ageDifferenceInYears = ageDifferenceInMilliseconds / (1000 * 3600 * 24 * 365);
-              setUnderAge(ageDifferenceInYears < 18);
-              formik.setFieldValue('dateofBirth', e.target.value);
-            }}
-            />
-            <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.dateofBirth}
-            </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>Country</Form.Label>
-        <Form.Select
-        id='country'
-          name="country"
-          className={`form-select ${formik.errors.country && formik.touched.country ? 'is-invalid' : ''}`}
-          {...formik.getFieldProps('country')}
-          onChange={(e) => {
-            const country = countries.find(c => c.name === e.target.value);
-            setSelectedCountry(country);
-            formik.setFieldValue('state', '');
-            formik.setFieldValue('city', '');
-            formik.setFieldValue('country', e.target.value);
-          }}
-        >
-          <option value="">Select Country</option>
-          {countries.map((country) => (
-            <option key={country.iso2} value={country.name}>
-              {country.name}
-            </option>
-          ))}
-        </Form.Select>
-        {formik.touched.country && formik.errors.country && (
-                      <div className='invalid-feedback'>{formik.errors.country}</div>
-                    )}
-      </Form.Group>
 
-      {/* Région */}
-      <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>State</Form.Label>
-        <Form.Select
-          id='state'
-          name="state"
-          className={`form-select ${formik.errors.state && formik.touched.state ? 'is-invalid' : ''}`}
-          {...formik.getFieldProps('state')}
-          onChange={(e) => {
-            const state = states.find(s => s.name === e.target.value);
-            setSelectedState(state);
-            formik.setFieldValue('city', '');
-            formik.setFieldValue('state', e.target.value);
-          }}
-          disabled={!selectedCountry}
-        >
-          <option value="">Select State</option>
-          {states.map((state) => (
-            <option key={state.id} value={state.name}>
-              {state.name}
-            </option>
-          ))}
-        </Form.Select>
-        {formik.touched.state && formik.errors.state && (
-            <div className='invalid-feedback'>{formik.errors.state}</div>
-          )}
-      </Form.Group>
-
-      {/* Ville */}
-      <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>City</Form.Label>
-        {cities.length > 0 ? (
-          <Form.Select
-            name="city"
-            {...formik.getFieldProps('city')}
-            isInvalid={formik.touched.city && !!formik.errors.city}
-            disabled={!selectedState}
-          >
-            <option value="">Select City</option>
-            {cities.map((city) => (
-              <option key={city.id} value={city.name}>
-                {city.name}
-              </option>
-            ))}
-          </Form.Select>
-        ) : (
-          <Form.Control
-            id='city'
-            type="text"
-            className={`form-control ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
-            {...formik.getFieldProps('city')}
-            disabled={!selectedState}
-          />
-        )}
-         {formik.touched.city && formik.errors.city && (
-            <div className='invalid-feedback'>{formik.errors.city}</div>
-          )}
-      </Form.Group>
-
-      {/* Rue */}
-      <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>Street</Form.Label>
-        <Form.Control
-          id='street'
-          type="text"
-          placeholder="N° et nom de rue"
-          className={`form-control ${formik.errors.street && formik.touched.street ? 'is-invalid' : ''}`}
-          {...formik.getFieldProps('street')}
-        />
-        {formik.touched.street && formik.errors.street && (
-            <div className='invalid-feedback'>{formik.errors.street}</div>
-          )}
-      </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12" 
-              className="position-relative">
-            <Form.Label>Email</Form.Label>
-            <Form.Control
-            type="email"
-            placeholder="email"
-            name="email"
-            {...formik.getFieldProps('email')}
-            isInvalid={formik.touched.email && formik.errors.email}
-            />
-            <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.email}
-            </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12" 
-              className="position-relative">
-            <Form.Label>Phone</Form.Label>
-            <Form.Control
-            type="tel"
-            placeholder="+(212) . . . . . . ."
-            name="phone"
-            {...formik.getFieldProps('phone')}
-            isInvalid={formik.touched.phone && formik.errors.phone}
-            />
-            <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.phone}
-            </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12" className="position-relative">
-  <Form.Label>Emergency Contact</Form.Label>
-  <Form.Control
-    type="tel"
-    placeholder="+(212) ..."
-    name="emergencyContact"
-    {...formik.getFieldProps('emergencyContact')}
-    isInvalid={formik.touched.emergencyContact && formik.errors.emergencyContact}
-  />
-  <Form.Control.Feedback type="invalid" tooltip>
-    {formik.errors.emergencyContact}
-  </Form.Control.Feedback>
-</Form.Group>
-<Form.Group as={Col} md="3" sm="6" xs="12" className="position-relative">
-    <Form.Label>Photo Usage Rights</Form.Label>
-    <Form.Check 
-        type="checkbox"
-        label="Autoriser l'utilisation de photos"
-        {...formik.getFieldProps('photoRights')}
-        checked={formik.values.photoRights}
-        isInvalid={formik.touched.photoRights && !!formik.errors.photoRights}
-    />
-</Form.Group>
-
+              <Form.Group as={Col} md="4" className="position-relative">
+                <Form.Label>Gender <span className="text-danger">*</span></Form.Label>
+                <Form.Select
+                  name="gender"
+                  {...formik.getFieldProps('gender')}
+                  isInvalid={formik.touched.gender && !!formik.errors.gender}
+                >
+                  <option value="">Select Gender</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                </Form.Select>
+                <Form.Control.Feedback type="invalid" tooltip>
+                  {formik.errors.gender}
+                </Form.Control.Feedback>
+              </Form.Group>
             </Row>
-           
-          <Row className='mb-3'>
-          <h3>Parents</h3>
-          <Button 
-  variant="link" 
-  onClick={() => setShowParent(!showParent)}
-  className="mb-3"
-> {showParent ? 'Masquer' : 'Modifier les informations parentales'}
-</Button>
-          <Form.Group
-            as={Col}
-            md="3"
-            sm="6"
-            xs="12"
-            controlId="validationFormik1032"
-            className='position-relative'
-          >
-            <Form.Label>First name {underAge && <span className='text-danger'>*</span>}</Form.Label>
-            <Form.Control
-              type="text"
-              name="guardfName"
-              placeholder="first name"
-              {...formik.getFieldProps('guardfName')}
-              isInvalid={formik.touched.guardfName && formik.errors.guardfName}
-              disabled={!showParent || !underAge}
-            />
-            <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.guardfName}</Form.Control.Feedback>
-          </Form.Group>
-              <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1"
-              className='position-relative'
-              >
-              <Form.Label>Last name<span className='text-danger'>*</span></Form.Label>
-              <Form.Control
-                type="text"
-                name="guardLName"
-                placeholder="last name"
-                {...formik.getFieldProps('guardLName')}
-                isInvalid={formik.touched.guardLName && formik.errors.guardLName}
-                disabled={!showParent || !underAge}
-                />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.guardLName}</Form.Control.Feedback>
-            </Form.Group>
-              <Form.Group as={Col} md="3" sm="6" xs="12"
-              className="position-relative">
-                <Form.Label>Cin</Form.Label>
+
+            <Row className="mb-3">
+              <Form.Group as={Col} md="4" className="position-relative">
+                <Form.Label>Date of Birth <span className="text-danger">*</span></Form.Label>
                 <Form.Control
-                type="text"
-                placeholder="cin"
-                name="guardcin"
-                {...formik.getFieldProps('guardCin')}
-                isInvalid={formik.touched.guardCin && formik.errors.guardCin}
-                disabled={!showParent || !underAge}
+                  type="date"
+                  name="dateofBirth"
+                  {...formik.getFieldProps('dateofBirth')}
+                  onChange={handleDateOfBirthChange}
+                  isInvalid={formik.touched.dateofBirth && !!formik.errors.dateofBirth}
                 />
                 <Form.Control.Feedback type="invalid" tooltip>
-                {formik.errors.guardCin}
+                  {formik.errors.dateofBirth}
                 </Form.Control.Feedback>
-                </Form.Group>
-                <Form.Group as={Col} md="3" sm="6" xs="12"
-                className="position-relative">
-                  <Form.Label>Gender</Form.Label>
+              </Form.Group>
+
+              <Form.Group as={Col} md="4" className="position-relative">
+                <Form.Label>Email</Form.Label>
+                <Form.Control
+                  type="email"
+                  name="email"
+                  placeholder="Enter email address"
+                  {...formik.getFieldProps('email')}
+                  isInvalid={formik.touched.email && !!formik.errors.email}
+                />
+                <Form.Control.Feedback type="invalid" tooltip>
+                  {formik.errors.email}
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group as={Col} md="4" className="position-relative">
+                <Form.Label>Phone</Form.Label>
+                <Form.Control
+                  type="tel"
+                  name="phone"
+                  placeholder="+(212) ..."
+                  {...formik.getFieldProps('phone')}
+                  isInvalid={formik.touched.phone && !!formik.errors.phone}
+                />
+                <Form.Control.Feedback type="invalid" tooltip>
+                  {formik.errors.phone}
+                </Form.Control.Feedback>
+              </Form.Group>
+            </Row>
+
+            <Row className="mb-3">
+              <Form.Group as={Col} md="6" className="position-relative">
+                <Form.Label>Emergency Contact</Form.Label>
+                <Form.Control
+                  type="tel"
+                  name="emergencyContact"
+                  placeholder="+(212) ..."
+                  {...formik.getFieldProps('emergencyContact')}
+                  isInvalid={formik.touched.emergencyContact && !!formik.errors.emergencyContact}
+                />
+                <Form.Control.Feedback type="invalid" tooltip>
+                  {formik.errors.emergencyContact}
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group as={Col} md="6" className="position-relative d-flex align-items-center">
+                <Form.Check
+                  type="checkbox"
+                  label="Authorize photo usage"
+                  {...formik.getFieldProps('photoRights')}
+                  checked={formik.values.photoRights}
+                />
+              </Form.Group>
+            </Row>
+
+            {/* Address Section */}
+            <h5 className="mt-4 mb-3">Address Information</h5>
+            <Row className="mb-3">
+              <Form.Group as={Col} md="3" className="position-relative">
+                <Form.Label>Country</Form.Label>
+                <Form.Select
+                  name="country"
+                  {...formik.getFieldProps('country')}
+                  onChange={handleCountryChange}
+                >
+                  <option value="">Select Country</option>
+                  {countries.map((country) => (
+                    <option key={country.iso2} value={country.name}>
+                      {country.name}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group as={Col} md="3" className="position-relative">
+                <Form.Label>State</Form.Label>
+                <Form.Select
+                  name="state"
+                  {...formik.getFieldProps('state')}
+                  onChange={handleStateChange}
+                  disabled={!selectedCountry}
+                >
+                  <option value="">Select State</option>
+                  {states.map((state) => (
+                    <option key={state.id} value={state.name}>
+                      {state.name}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group as={Col} md="3" className="position-relative">
+                <Form.Label>City</Form.Label>
+                {cities.length > 0 ? (
                   <Form.Select
-                  component="select"
-                  id="guardGender"
-                  name="guardGender"
-                  {...formik.getFieldProps('guardGender')}
-                  isInvalid={formik.touched.guardGender && formik.errors.guardGender}
-                  disabled={!showParent || !underAge}
+                    name="city"
+                    {...formik.getFieldProps('city')}
+                    disabled={!selectedState}
                   >
-                    <option value=''>Choose Gender</option>
-                    <option value='male'>Male</option>
-                    <option value='female'>Female</option>
+                    <option value="">Select City</option>
+                    {cities.map((city) => (
+                      <option key={city.id} value={city.name}>
+                        {city.name}
+                      </option>
+                    ))}
                   </Form.Select>
-                  <Form.Control.Feedback type="invalid" tooltip>
-                  {formik.errors.guardGender}
-                  </Form.Control.Feedback>
-                </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12" 
-              className="position-relative">
-            <Form.Label>Email</Form.Label>
-            <Form.Control
-            type="email"
-            placeholder="email"
-            name="guardemail"
-            {...formik.getFieldProps('guardEmail')}
-            isInvalid={formik.touched.guardEmail && formik.errors.guardEmail}
-            disabled={!showParent || !underAge}
-            />
-            <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.guardEmail}
-            </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group as={Col} md="3" sm="6" xs="12" 
-              className="position-relative">
-            <Form.Label>Phone</Form.Label>
-            <Form.Control
-            type="tel"
-            placeholder="+(212) . . . . . . . . ."
-            name="guardphone"
-            {...formik.getFieldProps('guardPhone')}
-            isInvalid={formik.touched.guardPhone && formik.errors.guardPhone}
-            disabled={!showParent || !underAge}
-            />
-            <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.guardPhone}
-            </Form.Control.Feedback>
-            </Form.Group>
-            <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>Country</Form.Label>
-        <Form.Select
-        id='country'
-          name="country"
-          className={`form-select ${formik.errors.country && formik.touched.country ? 'is-invalid' : ''}`}
-          disabled
-          {...formik.getFieldProps('country')}
-          onChange={(e) => {
-              const country = countries.find(c => c.name === e.target.value);
-            setSelectedCountry(country);
-            formik.setFieldValue('state', '');
-            formik.setFieldValue('city', '');
-            formik.setFieldValue('country', e.target.value);
-          }}
-        >
-          
-          <option value="">Select Country</option>
-          {countries.map((country) => (
-            <option key={country.iso2} value={country.name}>
-              {country.name}
-            </option>
-          ))}
-          
-        </Form.Select>
-        {formik.touched.country && formik.errors.country && (
-                      <div className='invalid-feedback'>{formik.errors.country}</div>
-                    )}
-      </Form.Group>
+                ) : (
+                  <Form.Control
+                    type="text"
+                    name="city"
+                    placeholder="Enter city"
+                    {...formik.getFieldProps('city')}
+                    disabled={!selectedState}
+                  />
+                )}
+              </Form.Group>
 
-      {/* Région */}
-      <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>State</Form.Label>
-        <Form.Select
-          id='state'
-          name="state"
-          className={`form-select ${formik.errors.state && formik.touched.state ? 'is-invalid' : ''}`}
-          {...formik.getFieldProps('state')}
-          onChange={(e) => {
-            const state = states.find(s => s.name === e.target.value);
-            setSelectedState(state);
-            formik.setFieldValue('city', '');
-            formik.setFieldValue('state', e.target.value);
-          }}
-          disabled
-        >
-          <option value="">Select State</option>
-          {states.map((state) => (
-            <option key={state.id} value={state.name}>
-              {state.name}
-            </option>
-          ))}
-        </Form.Select>
-        {formik.touched.state && formik.errors.state && (
-            <div className='invalid-feedback'>{formik.errors.state}</div>
-          )}
-      </Form.Group>
-
-      {/* Ville */}
-      <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>City</Form.Label>
-        {cities.length > 0 ? (
-          <Form.Select
-            name="city"
-            {...formik.getFieldProps('city')}
-            isInvalid={formik.touched.city && !!formik.errors.city}
-            disabled
-          >
-            <option value="">Select City</option>
-            {cities.map((city) => (
-              <option key={city.id} value={city.name}>
-                {city.name}
-              </option>
-            ))}
-          </Form.Select>
-        ) : (
-          <Form.Control
-            id='city'
-            type="text"
-            className={`form-control ${formik.errors.city && formik.touched.city ? 'is-invalid' : ''}`}
-            {...formik.getFieldProps('city')}
-            disabled
-          />
-        )}
-         {formik.touched.city && formik.errors.city && (
-            <div className='invalid-feedback'>{formik.errors.city}</div>
-          )}
-      </Form.Group>
-
-      {/* Rue */}
-      <Form.Group as={Col} md="3" className="position-relative">
-        <Form.Label>Street</Form.Label>
-        <Form.Control
-          id='street'
-          type="text"
-          placeholder="N° et nom de rue"
-          className={`form-control ${formik.errors.street && formik.touched.street ? 'is-invalid' : ''}`}
-          disabled
-          {...formik.getFieldProps('street')}
-        />
-        {formik.touched.street && formik.errors.street && (
-            <div className='invalid-feedback'>{formik.errors.street}</div>
-          )}
-      </Form.Group>
-                <Form.Group as={Col} md="3" sm="6" xs="12"
-                className="position-relative">
-                <Form.Label>Date of Birth</Form.Label>
+              <Form.Group as={Col} md="3" className="position-relative">
+                <Form.Label>Street</Form.Label>
                 <Form.Control
-                type="date"
-                placeholder="date of birth"
-                name="guarddob"
-                {...formik.getFieldProps('guardBirthDate')}
-                isInvalid={formik.touched.guardBirthDate && formik.errors.guardBirthDate}
-                disabled={!showParent || !underAge}
+                  type="text"
+                  name="street"
+                  placeholder="Street address"
+                  {...formik.getFieldProps('street')}
                 />
-                <Form.Control.Feedback type="invalid" tooltip>
-                {formik.errors.guardBirthDate}
-                </Form.Control.Feedback>
-                </Form.Group>
-                <Form.Group
-  as={Col}
-  md="3"
-  sm="6"
-  xs="12"
-  controlId="validationFormik1"
-  className='position-relative'
->
-  <Form.Label>Relation avec l'étudiant</Form.Label>
-  <Form.Select
-    component="select"
-    id="parentRelationship"
-    name="parentRelationship"
-    {...formik.getFieldProps('parentRelationship')}
-    isInvalid={formik.touched.parentRelationship && formik.errors.parentRelationship}
-    disabled={!showParent || !underAge}
-  >
-    <option value=''>Choisir la relation</option>
-    <option value='père'>Père</option>
-    <option value='mère'>Mère</option>
-    <option value='frère'>Frère</option>
-    <option value='sœur'>Sœur</option>
-    <option value='tuteur'>Tuteur</option>
-    <option value='autre'>Autre</option>
-  </Form.Select>
-  <Form.Control.Feedback type="invalid" tooltip>
-    {formik.errors.parentRelationship}
-  </Form.Control.Feedback>
-</Form.Group>
-          </Row>
-        :
-        <>
-        </>
-        
-        
-        <Row className='mb-3'>
-        <Form.Group
-              as={Col}
-              className="position-relative col-11 my-3"
+              </Form.Group>
+            </Row>
+          </div>
+        </div>
+
+        {/* Guardian Information Section - Only show if under age */}
+        {isUnderAge && (
+          <div className="card mb-4">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <h4>Guardian Information</h4>
+              <Button
+                variant="link"
+                onClick={() => setShowParentForm(!showParentForm)}
+                className="p-0"
               >
-              <Form.Label className='h3' >Payment options</Form.Label>
-              <div className='d-flex'>
-              <Form.Check 
-                  type="switch"
-                   id="free-student"
-                    label="Étudiant gratuit"
-                    checked={formik.values.isFree}
-                       onChange={(e) => {
-                       formik.setFieldValue('isFree', e.target.checked);
-                                }}
-                           className={`me-3 fs-4 ${formik.values.isFree ? "text-danger" : ''}`}/>
-            <Form.Check // prettier-ignore
-              type="switch"
-              id="custom-switch"
-              label="Test"
-              {...formik.getFieldProps('testLevel')}
-              className={`me-3 fs-4 ${formik.values.testLevel === true ? "text-warning" : ''}`}
-              disabled={formik.values.isFree}/>
-            <Form.Check // prettier-ignore
-              type="switch"
-              id="custom-switch"
-              label="Insurance"
-              {...formik.getFieldProps('insurrance')}
-              className={`me-3 fs-4 ${formik.values.insurrance === true ? "text-success" : ''}`}
-              disabled={formik.values.isFree}/>
-            
-              <Form.Check // prettier-ignore
-              type="switch"
-              id="custom-switch"
-              label="Course"
-              {...formik.getFieldProps('course')}
-              className={`me-3 fs-4 ${formik.values.course === true ? "text-info" : ''}`}
-              disabled={formik.values.isFree}/>
+                {showParentForm ? 'Hide' : 'Edit'} Guardian Info
+              </Button>
+            </div>
+            {showParentForm && (
+              <div className="card-body">
+                <Row className="mb-3">
+                  <Form.Group as={Col} md="4" className="position-relative">
+                    <Form.Label>Guardian First Name <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="guardfName"
+                      placeholder="Guardian first name"
+                      {...formik.getFieldProps('guardfName')}
+                      isInvalid={formik.touched.guardfName && !!formik.errors.guardfName}
+                    />
+                    <Form.Control.Feedback type="invalid" tooltip>
+                      {formik.errors.guardfName}
+                    </Form.Control.Feedback>
+                  </Form.Group>
+
+                  <Form.Group as={Col} md="4" className="position-relative">
+                    <Form.Label>Guardian Last Name <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="guardLName"
+                      placeholder="Guardian last name"
+                      {...formik.getFieldProps('guardLName')}
+                      isInvalid={formik.touched.guardLName && !!formik.errors.guardLName}
+                    />
+                    <Form.Control.Feedback type="invalid" tooltip>
+                      {formik.errors.guardLName}
+                    </Form.Control.Feedback>
+                  </Form.Group>
+
+                  <Form.Group as={Col} md="4" className="position-relative">
+                    <Form.Label>Guardian CIN</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="guardCin"
+                      placeholder="CIN"
+                      {...formik.getFieldProps('guardCin')}
+                      isInvalid={formik.touched.guardCin && !!formik.errors.guardCin}
+                    />
+                    <Form.Control.Feedback type="invalid" tooltip>
+                      {formik.errors.guardCin}
+                    </Form.Control.Feedback>
+                  </Form.Group>
+                </Row>
+
+                <Row className="mb-3">
+                  <Form.Group as={Col} md="4" className="position-relative">
+                    <Form.Label>Guardian Phone <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="tel"
+                      name="guardPhone"
+                      placeholder="+(212) ..."
+                      {...formik.getFieldProps('guardPhone')}
+                      isInvalid={formik.touched.guardPhone && !!formik.errors.guardPhone}
+                    />
+                    <Form.Control.Feedback type="invalid" tooltip>
+                      {formik.errors.guardPhone}
+                    </Form.Control.Feedback>
+                  </Form.Group>
+
+                  <Form.Group as={Col} md="4" className="position-relative">
+                    <Form.Label>Guardian Email</Form.Label>
+                    <Form.Control
+                      type="email"
+                      name="guardEmail"
+                      placeholder="Guardian email"
+                      {...formik.getFieldProps('guardEmail')}
+                      isInvalid={formik.touched.guardEmail && !!formik.errors.guardEmail}
+                    />
+                    <Form.Control.Feedback type="invalid" tooltip>
+                      {formik.errors.guardEmail}
+                    </Form.Control.Feedback>
+                  </Form.Group>
+
+                  <Form.Group as={Col} md="4" className="position-relative">
+                    <Form.Label>Relationship</Form.Label>
+                    <Form.Select
+                      name="parentRelationship"
+                      {...formik.getFieldProps('parentRelationship')}
+                    >
+                      <option value="">Select Relationship</option>
+                      <option value="père">Father</option>
+                      <option value="mère">Mother</option>
+                      <option value="frère">Brother</option>
+                      <option value="sœur">Sister</option>
+                      <option value="tuteur">Guardian</option>
+                      <option value="autre">Other</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Row>
               </div>
-              </Form.Group>
-            {
-              formik.values.testLevel === true ?
-              <>
-              <h3>Placement test</h3>
-              <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Test Fees</Form.Label>
-              <Form.Control
-              type="number"
-              placeholder="test fees"
-              name="testfees"
-              value={testPrice || 0}
-              disabled
-              isInvalid={formik.touched.testFees && formik.errors.testFees}
-              />
-              <Form.Control.Feedback type="invalid" tooltip>
-              {formik.errors.testFees}
-              </Form.Control.Feedback>
-              </Form.Group>
-              </>
-              :
-              <>
-              </>
-            }
-            {
-                formik.values.testLevel === true ?
-                <>
-                <Row>
-            <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1"
-              className='position-relative'
-              >
-              <Form.Label>Fees Paid</Form.Label>
-              <Form.Control
-                type="text"
-                name="testfeespaid"
-                placeholder="Test fees paid"
-                {...formik.getFieldProps('testFeesPaid')}
-                isInvalid={formik.touched.testFeesPaid && formik.errors.testFeesPaid}
-                />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.testFeesPaid}</Form.Control.Feedback>
-          </Form.Group>
-        </Row>
-                </>
-                :
-                <>
-                </>
-              }
-            {
-              formik.values.course === true ?
-              <>
-                <h3>Course</h3>
-        <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Class Name<span className='text-danger'>*</span></Form.Label>
-              <Form.Select
-              component="select"
-              id="class"
-              name="class"
-              {...formik.getFieldProps('class')}
-              isInvalid={formik.touched.class && formik.errors.class}
-              >
-              <option value=''>choose Class</option>
-                {classData.map((classe) => (
-                  <option key={classe.id} value={classe.id}>
-                    {classe.name + " (" +classe.cours.title + ")"}
-                  </option>
-                ))}
-              </Form.Select>
-              <Form.Control.Feedback type="invalid" tooltip>{formik.errors.class}</Form.Control.Feedback>
-              </Form.Group>
-              <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Course Fees</Form.Label>
-              <Form.Control
-              type="text"
-              name="courseFees"
-              value={findCoursFees(formik.values.class)}
-              readOnly
-              disabled
-              />
-                </Form.Group>
-              </>
-              :
-              <>
-              </>
-            }
-              </Row>
-              {
-                formik.values.course === true ?
-                <>
-                      <Row>
-  <Form.Group as={Col} md="3" sm="6" xs="12" controlId="validationFormik1" className='position-relative'>
-  <Form.Label>Discount</Form.Label>
-  <InputGroup>
-    <Form.Select
-      name="discount"
-      {...formik.getFieldProps('discount')}
-      isInvalid={formik.touched.discount && formik.errors.discount}
-    >
-      <option value="">Select Discount</option>
-      <option value="10">10%</option>
-      <option value="20">20%</option>
-      <option value="30">30%</option>
-      <option value="custom">Custom</option>
-    </Form.Select>
-    {formik.values.discount === 'custom' && (
-      <Form.Control
-        type="number"
-        name="customDiscount"
-        placeholder="Enter custom discount"
-        {...formik.getFieldProps('customDiscount')}
-        isInvalid={formik.touched.customDiscount && formik.errors.customDiscount}
+            )}
+          </div>
+        )}
+
+       
+{/* Advance Payment Section */}
+<div className="card mb-4">
+  <div className="card-header">
+    <h4>Advance Payment</h4>
+  </div>
+  <div className="card-body">
+    {/* Free Student Option */}
+    <Form.Group className="mb-3">
+      <Form.Check 
+        type="switch"
+        id="free-student"
+        label="Étudiant gratuit"
+        checked={formik.values.isFree}
+        onChange={(e) => {
+          formik.setFieldValue('isFree', e.target.checked);
+          // Si étudiant gratuit, réinitialiser l'avance
+          if (e.target.checked) {
+            formik.setFieldValue('courseFeesPaid', 0);
+          }
+        }}
+        className={`me-3 fs-4 ${formik.values.isFree ? "text-danger" : ''}`}
       />
-      )}
-      <InputGroup.Text id="basic-addon1">%</InputGroup.Text>
-    <Form.Control.Feedback className='' type="invalid" tooltip>
-      {formik.values.discount === 'custom' ? formik.errors.customDiscount : formik.errors.discount}
-    </Form.Control.Feedback>
-  </InputGroup>
-</Form.Group>
-              <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Negotiated Price</Form.Label>
-              <Form.Control
-              type="text"
-              name="negotiatedPrice"
-              placeholder="negotiated Price Paid"
-                {...formik.getFieldProps('negotiatedPrice')}
-                isInvalid={formik.touched.negotiatedPrice && formik.errors.negotiatedPrice}
-              />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.negotiatedPrice}</Form.Control.Feedback>
-          </Form.Group>
-            <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1"
-              className='position-relative'
-              >
-              <Form.Label>Fees Paid</Form.Label>
-              <Form.Control
-                type="text"
-                name="courseFeesPaid"
-                placeholder="courseFeesPaid"
-                {...formik.getFieldProps('courseFeesPaid')}
-                isInvalid={formik.touched.courseFeesPaid && formik.errors.courseFeesPaid}
-                />
-              <Form.Control.Feedback className='' type="invalid" tooltip>{formik.errors.courseFeesPaid}</Form.Control.Feedback>
-          </Form.Group>
-          <Form.Group
-              as={Col}
-              md={3}
-              sm={6}
-              xs={7}
-              className="position-relative"
-              >
-              <Form.Label>Payment Method</Form.Label>
-              <Form.Select
-              component="select"
-              id="methode"
-              name="methode"
-              {...formik.getFieldProps('methode')}
-              isInvalid={formik.touched.methode && formik.errors.methode}
-              >
-              <option value='cash'>cash</option>
-              <option value='check'>check</option>
-              <option value='bank'>bank</option>
-              </Form.Select>
-              <Form.Control.Feedback type="invalid" tooltip>{formik.errors.methode}</Form.Control.Feedback>
-              </Form.Group>
-        </Row>
-                </>
-                : 
-                <>
-                </>
-              }
-            <Form.Group
-              as={Col}
-              md="3"
-              sm="6"
-              xs="12"
-              controlId="validationFormik1"
-              className='position-relative'
-              >
-              <Form.Label>Total</Form.Label>
-              <Form.Control
-                type="text"
-                name="total"
-                placeholder="total"
-                value={total}
-                disabled
-                />
-          </Form.Group>
-        <Row className='mb-3'>
-        </Row>
-          <Button type="submit" onClick={()=>console.log("hi")}>Submit form</Button>
-        </Form>
+    </Form.Group>
+
+    {/* Advance Payment - Disabled if free student */}
+    {!formik.values.isFree && (
+      <Row className="mb-3">
+        <Form.Group as={Col} md="6" className="position-relative">
+          <Form.Label>Advance Payment Amount</Form.Label>
+          <Form.Control
+            type="number"
+            name="courseFeesPaid"
+            placeholder="Enter advance payment amount"
+            min="0"
+            {...formik.getFieldProps('courseFeesPaid')}
+            isInvalid={formik.touched.courseFeesPaid && !!formik.errors.courseFeesPaid}
+          />
+          <Form.Control.Feedback type="invalid" tooltip>
+            {formik.errors.courseFeesPaid}
+          </Form.Control.Feedback>
+          <Form.Text className="text-muted">
+            Montant de l'avance pour l'étudiant (sera automatiquement affiché lors de l'ajout de classe)
+          </Form.Text>
+        </Form.Group>
+
+        
+      </Row>
+    )}
+  </div>
+</div>
+
+        {/* Submit Button */}
+        <div className="d-flex justify-content-end gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`${getBaseRoute()}/student`)}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isLoading}
+            className="px-4"
+          >
+            {isLoading ? 'Registering...' : 'Register Student'}
+          </Button>
+        </div>
+      </Form>
+    </div>
   );
 }
-export default FormC;
+
+export default StudentRegistrationForm;

@@ -140,7 +140,7 @@ export default function Sidebar() {
             
             <NavItem to="/class" icon={groupes} label="Classes" />
             <NavItem to="/course" icon={cours} label="Courses" />
-            <NavItem to="/tests" icon={pass} label="Tests" />
+            {/* <NavItem to="/tests" icon={pass} label="Tests" />*/}
             <NavItem to="/levels" icon={level} label="Level" />
 
             {/* Suivi administratif */}
