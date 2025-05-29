@@ -64,6 +64,7 @@ export default function TableFeesEtud()
                   ramount:Number(row.remaining),
                   class:row.classe_name,
                   date:row.payment_date,
+                  avance:row.avance,
               }))
           );
             })
@@ -106,6 +107,11 @@ export default function TableFeesEtud()
         {
             name:"Inscription ID",
             selector:row => row.inscription_id,
+            display: 'none'
+        },
+        {
+            name:"avance",
+            selector:row => row.avance,
             display: 'none'
         },
         {

@@ -545,7 +545,7 @@ export default function SelectAttendanceGrp() {
             />
             <span style={{ fontSize: '1.25rem' }}>
               ❌:Absent &nbsp;&nbsp;✅:Present &nbsp;&nbsp;⚠️:Late
-              &nbsp;&nbsp;🎉:Holiday
+              {/* &nbsp;&nbsp;🎉:Holiday */}
             </span>
           </div>
           <div>

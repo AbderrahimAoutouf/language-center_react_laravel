@@ -26,6 +26,7 @@ class PaymentResource extends JsonResource
             'classe_id' => $this->getClasseId(),
             'cours_fee' => $this->getCourseFee(),
             'etudiant_id' => $this->getEtudiantId(),
+            'avance' => $this->getEtudiantAvance(),
             'status' => $this->inscrireClass->payment_status,
             'negotiated_price' => (float)$this->getNegotiatedPrice(),
             'amount' => (float)$this->amount,

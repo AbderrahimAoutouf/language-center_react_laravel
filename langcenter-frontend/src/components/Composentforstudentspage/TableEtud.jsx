@@ -149,6 +149,10 @@ const TableEtud = () => {
             
             // Show success notification
             toast.success('Student data loaded successfully');
+            setTimeout(() => {
+          setNotification('');
+          setVariant('');
+        }, 3000);
         } catch (error) {
             console.error('Error fetching data:', error);
             setNotification('Failed to load data');
@@ -157,6 +161,10 @@ const TableEtud = () => {
             
             // Show error notification
             toast.error('Failed to load student data');
+            setTimeout(() => {
+          setNotification('');
+          setVariant('');
+        }, 3000);
         }
     };
 
@@ -188,12 +196,18 @@ const TableEtud = () => {
             
             setNotification('Student deleted successfully');
             setVariant('danger');
-            toast.success('Student deleted successfully');
+        setTimeout(() => {
+          setNotification('');
+          setVariant('');
+        }, 3000);
         } catch (error) {
             console.error('Delete error:', error);
             setNotification('Delete failed');
             setVariant('danger');
-            toast.error('Failed to delete student');
+            setTimeout(() => {
+          setNotification('');
+          setVariant('');
+        }, 3000);
         }
     };
 

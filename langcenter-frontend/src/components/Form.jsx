@@ -160,13 +160,13 @@ function StudentRegistrationForm() {
 
   // Auto-fill parent information if exists
   useEffect(() => {
-    if (isUnderAge && (formik.values.guardCin?.length >= 7 || formik.values.guardPhone?.length >= 9)) {
+    if (isUnderAge && (formik.values.guardPhone?.length >= 10)) {
       const debounceTimer = setTimeout(() => {
         searchExistingParent();
       }, 500);
       return () => clearTimeout(debounceTimer);
     }
-  }, [formik.values.guardCin, formik.values.guardPhone, isUnderAge]);
+  }, [ formik.values.guardPhone, isUnderAge]);
 
   // Course handling functions
   const handleCourseChange = (e) => {
@@ -201,7 +201,6 @@ function StudentRegistrationForm() {
   const searchExistingParent = async () => {
     try {
       const response = await axios.post('/api/parents/search', {
-        cin: formik.values.guardCin,
         telephone: formik.values.guardPhone
       });
 
@@ -224,9 +223,8 @@ function StudentRegistrationForm() {
       guardGender: parent.sexe || '',
       guardEmail: parent.email || '',
       guardBirthDate: parent.date_naissance || '',
-      guardAddress: parent.adresse || '',
       parentRelationship: parent.relationship || '',
-      address: parent.adresse || ''
+      guardCin:parent.cin || '',
     });
     setShowParentForm(false);
   };

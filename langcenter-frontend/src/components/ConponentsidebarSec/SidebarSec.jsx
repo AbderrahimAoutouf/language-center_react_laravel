@@ -101,7 +101,7 @@ export default function SidebarSec() {
             <CategoryHeader label="Suivi administratif" />
             <NavItem to="/secretary/attendance" icon={presence} label="Attendance" />
             {/*<NavItem to="/secretary/results" icon={results} label="Results" />*/}
-            <NavItem to="/secretary/holidays" icon={holidays} label="Holidays" />
+            {/* <NavItem to="/secretary/holidays" icon={holidays} label="Holidays" /> */}
             
             {/* Paiement dropdown */}
             <CategoryHeader label="Paiement" />

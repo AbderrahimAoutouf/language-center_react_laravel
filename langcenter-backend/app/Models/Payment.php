@@ -33,6 +33,10 @@ class Payment extends Model
     {
         return $this->inscrireClass->etudiant->prenom . ' ' . $this->inscrireClass->etudiant->nom;
     }
+    public function getEtudiantAvance()
+    {
+        return $this->inscrireClass->etudiant->avance;
+    }
     public function getClasseName()
     {
         return $this->inscrireClass->class_->name;

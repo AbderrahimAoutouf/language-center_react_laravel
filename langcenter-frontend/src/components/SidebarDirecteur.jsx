@@ -118,7 +118,7 @@ export default function SidebarDirecteur() {
             {/* Organisation */}
             <CategoryHeader label="Organisation" />
             <NavItem to="/director/classroom" icon={salles} label="Classrooms" />
-            <NavItem to="/director/holidays" icon={holidays} label="Holidays" />
+            {/* <NavItem to="/director/holidays" icon={holidays} label="Holidays" /> */}
             <NavItem to="/director/schedule" icon={empTemps} label="Schedules" />
 
             {/* Logout */}

@@ -12,9 +12,9 @@ export default function PaiementsEtu(){
                 <Nav.Item className="bg-light">
                     <Nav.Link className={!selectedTab ? "bg-info text-light" : "text-dark"} onClick={() => setSelectedTab(0)}>Class Inscriptions</Nav.Link>
                 </Nav.Item>
-                <Nav.Item className="bg-light">
+                {/* <Nav.Item className="bg-light">
                     <Nav.Link className={selectedTab ? "bg-info text-light" : "text-dark"}  onClick={() => setSelectedTab(1)}>Test Registration</Nav.Link>
-                </Nav.Item>
+                </Nav.Item> */}
             </Nav>
         </div>
         <div className="Container">

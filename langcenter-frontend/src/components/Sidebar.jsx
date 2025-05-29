@@ -166,7 +166,7 @@ export default function Sidebar() {
             </div>
             
             <NavItem to="/classroom" icon={salles} label="Classrooms" />
-            <NavItem to="/holidays" icon={holidays} label="Holidays" />
+            {/* <NavItem to="/holidays" icon={holidays} label="Holidays" /> */}
             <NavItem to="/schedule" icon={empTemps} label="Schedules" />
 
             {/* Administration */}
