@@ -3,202 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reçu d'inscription</title>
+    <title>Reçu d'inscription - Double</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            font-size: 12px;
+            font-size: 8px;
             margin: 0;
-            padding: 20px;
-            color: #333;
+            padding: 10px;
+            color: #000;
+            line-height: 1.1;
         }
+        
+        .page-container {
+            max-width: 21cm;
+            margin: 0 auto;
+        }
+        
+        .receipt {
+            width: 100%;
+            border: 1px solid #000;
+            padding: 8px;
+            margin-bottom: 10px;
+            page-break-inside: avoid;
+        }
+        
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
         }
+        
         .header h1 {
-            margin: 0;
-            color: #2c3e50;
-            font-size: 24px;
+            margin: 0 0 3px 0;
+            font-size: 11px;
+            font-weight: bold;
         }
+        
         .header p {
-            margin: 5px 0;
-            color: #7f8c8d;
+            margin: 1px 0;
+            font-size: 7px;
         }
+        
         .receipt-info {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 6px;
+            font-size: 7px;
         }
-        .receipt-info div {
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .section {
+            border: 1px solid #ccc;
+            padding: 4px;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            font-size: 8px;
+            margin-bottom: 3px;
+            text-decoration: underline;
+        }
+        
+        .info-line {
+            margin-bottom: 1px;
+            font-size: 7px;
+        }
+        
+        .info-line strong {
+            font-weight: bold;
+        }
+        
+        .course-payment {
+            grid-column: span 1;
+        }
+        
+        .payment-summary {
+            background-color: #f5f5f5;
+            padding: 3px;
+            text-align: center;
+            font-size: 7px;
+            margin-top: 3px;
+        }
+        
+        .paid-status {
+            font-weight: bold;
+            font-size: 7px;
+            padding: 2px 4px;
+            background-color: #e9ecef;
+            border: 1px solid #999;
+        }
+        
+        .signatures {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 8px;
+            gap: 5px;
+        }
+        
+        .signature-box {
+            text-align: center;
+            font-size: 6px;
             flex: 1;
         }
-        .section {
-            margin-bottom: 20px;
+        
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 12px;
+            padding-top: 1px;
         }
-        .section h3 {
-            background-color: #ecf0f1;
-            padding: 8px;
-            margin: 0 0 10px 0;
-            border-left: 4px solid #3498db;
-            font-size: 14px;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .info-item {
-            padding: 5px 0;
-        }
-        .info-item strong {
-            color: #2c3e50;
-        }
-        .payment-summary {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #dee2e6;
-        }
-        .total-amount {
-            font-size: 18px;
-            font-weight: bold;
-            color: #27ae60;
-            text-align: right;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 2px solid #27ae60;
-        }
+        
         .footer {
-            margin-top: 40px;
             text-align: center;
-            font-size: 10px;
-            color: #7f8c8d;
-            border-top: 1px solid #bdc3c7;
-            padding-top: 15px;
+            font-size: 6px;
+            margin-top: 6px;
+            border-top: 1px solid #000;
+            padding-top: 4px;
         }
+        
         @media print {
-            body { margin: 0; }
+            body { 
+                margin: 0; 
+                padding: 5px;
+            }
+            .receipt {
+                border: 1px solid #000;
+                margin-bottom: 5px;
+            }
+            .page-container {
+                max-width: none;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>REÇU D'INSCRIPTION</h1>
-        <p>École de Langues</p>
-        <p>Adresse de l'école • Téléphone • Email</p>
-    </div>
+    <div class="page-container">
+        <!-- First Receipt -->
+        <div class="receipt">
+            <div class="header">
+                <h1>REÇU D'INSCRIPTION</h1>
+                <p><strong>English Castle</strong></p>
+                <p>N° 19, Immeuble Icenter, Bouskoura • Tél: 05223-20900</p>
+            </div>
 
-    <div class="receipt-info">
-        <div>
-            <strong>Reçu N°:</strong> {{ str_pad($etudiant->id, 6, '0', STR_PAD_LEFT) }}<br>
-            <strong>Date:</strong> {{ $date_generation }}
-        </div>
-        <div style="text-align: right;">
-            <strong>Année scolaire:</strong> {{ date('Y') }}-{{ date('Y') + 1 }}
-        </div>
-    </div>
+            <div class="receipt-info">
+                <div><strong>Reçu N°:</strong> {{ str_pad($etudiant->id, 6, '0', STR_PAD_LEFT) }}</div>
+                <div><strong>Date:</strong> {{ $date_generation }}</div>
+                <div><strong>Année:</strong> {{ date('Y') }}-{{ date('Y') + 1 }}</div>
+            </div>
 
-    <div class="section">
-        <h3>INFORMATIONS ÉTUDIANT</h3>
-        <div class="info-grid">
-            <div class="info-item">
-                <strong>Nom complet:</strong> {{ $etudiant->prenom }} {{ $etudiant->nom }}
-            </div>
-            <div class="info-item">
-                <strong>Date de naissance:</strong> {{ \Carbon\Carbon::parse($etudiant->date_naissance)->format('d/m/Y') }}
-            </div>
-            <div class="info-item">
-                <strong>Email:</strong> {{ $etudiant->email ?? 'Non renseigné' }}
-            </div>
-            <div class="info-item">
-                <strong>Téléphone:</strong> {{ $etudiant->telephone ?? 'Non renseigné' }}
-            </div>
-        </div>
-        @if($etudiant->parent_)
-        <div class="info-grid">
-            <div class="info-item">
-                <strong>Parent/Tuteur:</strong> {{ $etudiant->parent_->prenom }} {{ $etudiant->parent_->nom }}
-            </div>
-            <div class="info-item">
-                <strong>Téléphone parent:</strong> {{ $etudiant->parent_->telephone ?? 'Non renseigné' }}
-            </div>
-        </div>
-        @endif
-    </div>
-
-    @if($classe && $cours)
-    <div class="section">
-        <h3>INFORMATIONS COURS</h3>
-        <div class="info-grid">
-            <div class="info-item">
-                <strong>Classe:</strong> {{ $classe->name }}
-            </div>
-            <div class="info-item">
-                <strong>Cours:</strong> {{ $cours->title }}
-            </div>
-            @if($inscription)
-            <div class="info-item">
-                <strong>Prix négocié:</strong> {{ number_format($inscription->negotiated_price, 2) }} MAD
-            </div>
-            <div class="info-item">
-                <strong>Date d'inscription:</strong> {{ \Carbon\Carbon::parse($inscription->created_at)->format('d/m/Y') }}
-            </div>
-            @endif
-        </div>
-    </div>
-    @endif
-
-    @if($payment)
-    <div class="section">
-        <h3>DÉTAILS DU PAIEMENT</h3>
-        <div class="payment-summary">
-            <div class="info-grid">
-                <div class="info-item">
-                    <strong>Montant payé:</strong> {{ number_format($payment->payment_amount, 2) }} MAD
+            <div class="main-content">
+                <div class="section">
+                    <div class="section-title">ÉTUDIANT</div>
+                    <div class="info-line"><strong>Nom:</strong> {{ $etudiant->prenom }} {{ $etudiant->nom }}</div>
+                    <div class="info-line"><strong>Né:</strong> {{ \Carbon\Carbon::parse($etudiant->date_naissance)->format('d/m/Y') }}</div>
+                    <div class="info-line"><strong>Âge:</strong> {{ \Carbon\Carbon::parse($etudiant->date_naissance)->age }} ans</div>
+                    <div class="info-line"><strong>Genre:</strong> {{ $etudiant->sexe == 'male' ? 'M' : 'F' }}</div>
+                    @if($etudiant->email)
+                        <div class="info-line"><strong>Email:</strong> {{ $etudiant->email }}</div>
+                    @endif
+                    @if($etudiant->telephone)
+                        <div class="info-line"><strong>Tél:</strong> {{ $etudiant->telephone }}</div>
+                    @endif
+                    <div class="info-line"><strong>Photo:</strong> {{ $etudiant->photo_authorized ? 'Oui' : 'Non' }}</div>
                 </div>
-                <div class="info-item">
-                    <strong>Mode de paiement:</strong> {{ ucfirst($payment->type ?? 'Espèces') }}
-                </div>
-                <div class="info-item">
-                    <strong>Date de paiement:</strong> {{ \Carbon\Carbon::parse($payment->created_at)->format('d/m/Y H:i') }}
-                </div>
-                <div class="info-item">
-                    <strong>Statut:</strong> 
-                    @if($inscription && $payment->payment_amount >= $inscription->negotiated_price)
-                        <span style="color: #27ae60;">Payé intégralement</span>
+
+                @if($etudiant->parent_)
+                    <div class="section">
+                        <div class="section-title">TUTEUR</div>
+                        <div class="info-line"><strong>Nom:</strong> {{ $etudiant->parent_->prenom }} {{ $etudiant->parent_->nom }}</div>
+                        @if($etudiant->parent_->relationship)
+                            <div class="info-line"><strong>Relation:</strong> {{ $etudiant->parent_->relationship }}</div>
+                        @endif
+                        @if($etudiant->parent_->telephone)
+                            <div class="info-line"><strong>Tél:</strong> {{ $etudiant->parent_->telephone }}</div>
+                        @endif
+                        @if($etudiant->parent_->email)
+                            <div class="info-line"><strong>Email:</strong> {{ $etudiant->parent_->email }}</div>
+                        @endif
+                        @if($etudiant->parent_->cin)
+                            <div class="info-line"><strong>CIN:</strong> {{ $etudiant->parent_->cin }}</div>
+                        @endif
+                    </div>
+                @endif
+
+                <div class="section course-payment">
+                    <div class="section-title">COURS & PAIEMENT</div>
+                    @if($cours)
+                        <div class="info-line"><strong>Cours:</strong> {{ $cours->title }}</div>
+                        @if($cours->price)
+                            <div class="info-line"><strong>Prix:</strong> {{ number_format($cours->price, 2) }} MAD</div>
+                        @endif
+                        @if($cours->duration)
+                            <div class="info-line"><strong>Durée:</strong> {{ $cours->duration }}</div>
+                        @endif
+                    @endif
+
+                    @if($etudiant->gratuit)
+                        <div class="payment-summary">
+                            <div class="paid-status">ÉTUDIANT GRATUIT</div>
+                        </div>
                     @else
-                        <span style="color: #e74c3c;">Paiement partiel</span>
+                        @php
+                            $coursPrice = $cours->price ?? 0;
+                            $avancePaid = $etudiant->avance ?? 0;
+                            $remaining = $coursPrice - $avancePaid;
+                            $isFullyPaid = $remaining <= 0;
+                        @endphp
+                        
+                        <div class="info-line"><strong>Avance:</strong> {{ number_format($avancePaid, 2) }} MAD</div>
+                        <div class="payment-summary">
+                            <div class="paid-status">
+                                {{ $isFullyPaid ? 'PAYÉ' : 'PARTIEL' }}
+                            </div>
+                            @if(!$isFullyPaid)
+                                <div style="font-size: 6px; margin-top: 2px;">
+                                    Reste: {{ number_format($remaining, 2) }} MAD
+                                </div>
+                            @endif
+                        </div>
                     @endif
                 </div>
             </div>
-            
-            @if($inscription)
-            <div class="total-amount">
-                Total à payer: {{ number_format($inscription->negotiated_price, 2) }} MAD
-            </div>
-            @endif
-        </div>
-    </div>
-    @endif
 
-    @if($etudiant->gratuit)
-    <div class="section">
-        <div class="payment-summary" style="background-color: #d4edda; border-color: #c3e6cb;">
-            <div style="text-align: center; font-weight: bold; color: #155724;">
-                ÉTUDIANT GRATUIT - AUCUN PAIEMENT REQUIS
+            <div class="signatures">
+                <div class="signature-box">
+                    <div>Étudiant</div>
+                    <div class="signature-line"></div>
+                </div>
+                <div class="signature-box">
+                    <div>Cachet</div>
+                    <div class="signature-line"></div>
+                </div>
+                <div class="signature-box">
+                    <div>Administration</div>
+                    <div class="signature-line"></div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Reçu d'inscription • {{ $date_generation }}</p>
             </div>
         </div>
-    </div>
-    @endif
 
-    <div class="footer">
-        <p>Ce reçu certifie l'inscription de l'étudiant(e) mentionné(e) ci-dessus.</p>
-        <p>Pour toute question, veuillez nous contacter.</p>
-        <p>Généré le {{ $date_generation }}</p>
+        <!-- Second Receipt (Identical) -->
+        <div class="receipt">
+            <div class="header">
+                <h1>REÇU D'INSCRIPTION</h1>
+                <p><strong>English Castle</strong></p>
+                <p>N° 19, Immeuble Icenter, Bouskoura • Tél: 05223-20900</p>
+            </div>
+
+            <div class="receipt-info">
+                <div><strong>Reçu N°:</strong> {{ str_pad($etudiant->id, 6, '0', STR_PAD_LEFT) }}</div>
+                <div><strong>Date:</strong> {{ $date_generation }}</div>
+                <div><strong>Année:</strong> {{ date('Y') }}-{{ date('Y') + 1 }}</div>
+            </div>
+
+            <div class="main-content">
+                <div class="section">
+                    <div class="section-title">ÉTUDIANT</div>
+                    <div class="info-line"><strong>Nom:</strong> {{ $etudiant->prenom }} {{ $etudiant->nom }}</div>
+                    <div class="info-line"><strong>Né:</strong> {{ \Carbon\Carbon::parse($etudiant->date_naissance)->format('d/m/Y') }}</div>
+                    <div class="info-line"><strong>Âge:</strong> {{ \Carbon\Carbon::parse($etudiant->date_naissance)->age }} ans</div>
+                    <div class="info-line"><strong>Genre:</strong> {{ $etudiant->sexe == 'male' ? 'M' : 'F' }}</div>
+                    @if($etudiant->email)
+                        <div class="info-line"><strong>Email:</strong> {{ $etudiant->email }}</div>
+                    @endif
+                    @if($etudiant->telephone)
+                        <div class="info-line"><strong>Tél:</strong> {{ $etudiant->telephone }}</div>
+                    @endif
+                    <div class="info-line"><strong>Photo:</strong> {{ $etudiant->photo_authorized ? 'Oui' : 'Non' }}</div>
+                </div>
+
+                @if($etudiant->parent_)
+                    <div class="section">
+                        <div class="section-title">TUTEUR</div>
+                        <div class="info-line"><strong>Nom:</strong> {{ $etudiant->parent_->prenom }} {{ $etudiant->parent_->nom }}</div>
+                        @if($etudiant->parent_->relationship)
+                            <div class="info-line"><strong>Relation:</strong> {{ $etudiant->parent_->relationship }}</div>
+                        @endif
+                        @if($etudiant->parent_->telephone)
+                            <div class="info-line"><strong>Tél:</strong> {{ $etudiant->parent_->telephone }}</div>
+                        @endif
+                        @if($etudiant->parent_->email)
+                            <div class="info-line"><strong>Email:</strong> {{ $etudiant->parent_->email }}</div>
+                        @endif
+                        @if($etudiant->parent_->cin)
+                            <div class="info-line"><strong>CIN:</strong> {{ $etudiant->parent_->cin }}</div>
+                        @endif
+                    </div>
+                @endif
+
+                <div class="section course-payment">
+                    <div class="section-title">COURS & PAIEMENT</div>
+                    @if($cours)
+                        <div class="info-line"><strong>Cours:</strong> {{ $cours->title }}</div>
+                        @if($cours->price)
+                            <div class="info-line"><strong>Prix:</strong> {{ number_format($cours->price, 2) }} MAD</div>
+                        @endif
+                        @if($cours->duration)
+                            <div class="info-line"><strong>Durée:</strong> {{ $cours->duration }}</div>
+                        @endif
+                    @endif
+
+                    @if($etudiant->gratuit)
+                        <div class="payment-summary">
+                            <div class="paid-status">ÉTUDIANT GRATUIT</div>
+                        </div>
+                    @else
+                        @php
+                            $coursPrice = $cours->price ?? 0;
+                            $avancePaid = $etudiant->avance ?? 0;
+                            $remaining = $coursPrice - $avancePaid;
+                            $isFullyPaid = $remaining <= 0;
+                        @endphp
+                        
+                        <div class="info-line"><strong>Avance:</strong> {{ number_format($avancePaid, 2) }} MAD</div>
+                        <div class="payment-summary">
+                            <div class="paid-status">
+                                {{ $isFullyPaid ? 'PAYÉ' : 'PARTIEL' }}
+                            </div>
+                            @if(!$isFullyPaid)
+                                <div style="font-size: 6px; margin-top: 2px;">
+                                    Reste: {{ number_format($remaining, 2) }} MAD
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <div class="signatures">
+                <div class="signature-box">
+                    <div>Étudiant</div>
+                    <div class="signature-line"></div>
+                </div>
+                <div class="signature-box">
+                    <div>Cachet</div>
+                    <div class="signature-line"></div>
+                </div>
+                <div class="signature-box">
+                    <div>Administration</div>
+                    <div class="signature-line"></div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Reçu d'inscription • {{ $date_generation }}</p>
+            </div>
+        </div>
     </div>
 </body>
 </html>

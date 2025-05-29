@@ -1,29 +1,29 @@
 import { useFormik } from 'formik';
 import { useState, useEffect } from 'react';
-import { Form, Button, Col, Row, Alert } from 'react-bootstrap';
+import { Form, Button, Col, Row, Alert, Modal } from 'react-bootstrap';
 import * as yup from 'yup';
 import axios from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { UseStateContext } from '../context/ContextProvider';
-import countriesData from '../data/countries+states+cities.json';
+import AddCourse from './Composantsforcoursepage/AddCourse'; 
 
 // Constants
 const MINIMUM_AGE = 18;
-
 
 function StudentRegistrationForm() {
   const navigate = useNavigate();
   const { user, setNotification, setVariant } = UseStateContext();
   
   // State management
-  const [countries, setCountries] = useState([]);
-  const [states, setStates] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [selectedState, setSelectedState] = useState(null);
   const [isUnderAge, setIsUnderAge] = useState(false);
   const [showParentForm, setShowParentForm] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Course related states
+  const [coursesData, setCoursesData] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [showAddCourseModal, setShowAddCourseModal] = useState(false);
+  const [remainingAmount, setRemainingAmount] = useState(0);
 
   // User role-based routing
   const getBaseRoute = () => {
@@ -54,6 +54,9 @@ function StudentRegistrationForm() {
     phone: yup.string().min(9, 'Phone number too short'),
     emergencyContact: yup.string().min(9, 'Emergency contact too short'),
     
+    // Course selection
+    course: yup.string().required('Course selection is required'),
+    
     // Guardian fields (conditional validation)
     guardfName: yup.string().when('isUnderAge', {
       is: true,
@@ -76,28 +79,23 @@ function StudentRegistrationForm() {
     guardEmail: yup.string().email('Invalid email format'),
     parentRelationship: yup.string(),
     
-     // Advance payment validation
-  courseFeesPaid: yup.number()
-  .transform((value, originalValue) => {
-    // Convertir en nombre si c'est une chaîne
-    return originalValue === '' ? 0 : Number(originalValue);
-  })
-  .min(0, 'Advance payment cannot be negative')
-  .when('isFree', {
-    is: false,
-    then: () => yup.number()
-      .transform((value, originalValue) => originalValue === '' ? 0 : Number(originalValue))
-      .min(0, 'Advance payment cannot be negative'),
-    otherwise: () => yup.number()
-      .transform((value, originalValue) => originalValue === '' ? 0 : Number(originalValue))
-  }),
-  
-  
+    // Advance payment validation
+    courseFeesPaid: yup.number()
+      .transform((value, originalValue) => {
+        return originalValue === '' ? 0 : Number(originalValue);
+      })
+      .min(0, 'Advance payment cannot be negative')
+      .when('isFree', {
+        is: false,
+        then: (schema) => schema.max(yup.ref('coursePrice'), 'Advance payment cannot exceed course price'),
+        otherwise: () => yup.number()
+          .transform((value, originalValue) => originalValue === '' ? 0 : Number(originalValue))
+      }),
     
     photoRights: yup.boolean()
   });
 
-  // Formik setup - MOVED BEFORE useEffect hooks that depend on it
+  // Formik setup
   const formik = useFormik({
     initialValues: {
       firstName: '',
@@ -107,10 +105,11 @@ function StudentRegistrationForm() {
       email: '',
       phone: '',
       emergencyContact: '',
-      country: '',
-      state: '',
-      city: '',
-      street: '',
+      address: '',
+      
+      // Course information
+      course: '',
+      coursePrice: 0,
       
       // Guardian information
       guardfName: '',
@@ -134,33 +133,34 @@ function StudentRegistrationForm() {
     onSubmit: handleFormSubmit
   });
 
-  // Data fetching effects
-  useEffect(() => {
-    setCountries(countriesData);
-  }, []);
-
   
 
-  // Location handling effects
+  // Fetch courses data
   useEffect(() => {
-    if (selectedCountry) {
-      setStates(selectedCountry.states || []);
-      setCities([]);
-      formik.setFieldValue('state', '');
-      formik.setFieldValue('city', '');
-    }
-  }, [selectedCountry, formik]);
+    const fetchCourses = async () => {
+      try {
+        const response = await axios.get('/api/cours');
+        setCoursesData(response.data);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        showNotification('Failed to load courses', 'danger');
+      }
+    };
+    
+    fetchCourses();
+  }, []);
 
+  // Calculate remaining amount when course or advance payment changes
   useEffect(() => {
-    if (selectedState) {
-      setCities(selectedState.cities || []);
-      formik.setFieldValue('city', '');
-    }
-  }, [selectedState, formik]);
+    const coursePrice = formik.values.coursePrice || 0;
+    const advancePayment = Number(formik.values.courseFeesPaid) || 0;
+    const remaining = coursePrice - advancePayment;
+    setRemainingAmount(Math.max(0, remaining));
+  }, [formik.values.coursePrice, formik.values.courseFeesPaid]);
 
   // Auto-fill parent information if exists
   useEffect(() => {
-    if (isUnderAge && (formik.values.guardCin?.length >= 2 || formik.values.guardPhone?.length >= 9)) {
+    if (isUnderAge && (formik.values.guardCin?.length >= 7 || formik.values.guardPhone?.length >= 9)) {
       const debounceTimer = setTimeout(() => {
         searchExistingParent();
       }, 500);
@@ -168,8 +168,36 @@ function StudentRegistrationForm() {
     }
   }, [formik.values.guardCin, formik.values.guardPhone, isUnderAge]);
 
+  // Course handling functions
+  const handleCourseChange = (e) => {
+    const courseId = e.target.value;
+    
+    if (courseId === 'add-new-course') {
+      setShowAddCourseModal(true);
+      formik.setFieldValue('course', '');
+      return;
+    }
+    
+    const course = coursesData.find(c => c.id == courseId);
+    setSelectedCourse(course);
+    
+    formik.setFieldValue('course', courseId);
+    formik.setFieldValue('coursePrice', course ? course.price : 0);
+    
+    // Reset advance payment when course changes
+    formik.setFieldValue('courseFeesPaid', 0);
+  };
+
+  const handleNewCourseAdded = (newCourse) => {
+    setCoursesData([...coursesData, newCourse]);
+    setSelectedCourse(newCourse);
+    formik.setFieldValue('course', newCourse.id);
+    formik.setFieldValue('coursePrice', newCourse.price);
+    setShowAddCourseModal(false);
+    showNotification('Course added successfully', 'success');
+  };
+
   // API Functions
-  
   const searchExistingParent = async () => {
     try {
       const response = await axios.post('/api/parents/search', {
@@ -198,10 +226,7 @@ function StudentRegistrationForm() {
       guardBirthDate: parent.date_naissance || '',
       guardAddress: parent.adresse || '',
       parentRelationship: parent.relationship || '',
-      street: addressParts[0] || '',
-      city: addressParts[1] || '',
-      state: addressParts[2] || '',
-      country: addressParts[3] || ''
+      address: parent.adresse || ''
     });
     setShowParentForm(false);
   };
@@ -236,20 +261,6 @@ function StudentRegistrationForm() {
     setIsUnderAge(underAge);
     formik.setFieldValue('dateofBirth', selectedDate);
     formik.setFieldValue('isUnderAge', underAge);
-  };
-
-  const handleCountryChange = (e) => {
-    const countryName = e.target.value;
-    const country = countries.find(c => c.name === countryName);
-    setSelectedCountry(country);
-    formik.setFieldValue('country', countryName);
-  };
-
-  const handleStateChange = (e) => {
-    const stateName = e.target.value;
-    const state = states.find(s => s.name === stateName);
-    setSelectedState(state);
-    formik.setFieldValue('state', stateName);
   };
 
   // PDF Receipt generation
@@ -288,7 +299,7 @@ function StudentRegistrationForm() {
     setIsLoading(true);
     
     try {
-      // Prepare student data with advance payment
+      // Prepare student data with course and advance payment
       const studentData = {
         prenom: values.firstName,
         nom: values.lastName,
@@ -297,13 +308,17 @@ function StudentRegistrationForm() {
         email: values.email,
         telephone: values.phone,
         emergency_contact: values.emergencyContact,
-        adresse: `${values.street}, ${values.city}, ${values.state}, ${values.country}`,
+        adresse: values.address,
         gratuit: formik.values.isFree,
         adulte: !isUnderAge,
         underAge: isUnderAge,
         photo_authorized: values.photoRights,
-        // NOUVELLE COLONNE: Sauvegarder l'avance dans la table etudiant
+        
+        // Course information
+        cours_id: values.course,
+        prix_course: values.coursePrice,
         avance: !values.isFree ? Number(values.courseFeesPaid) : 0,
+        montant_restant: !values.isFree ? remainingAmount : 0,
         
         // Guardian information (if under age)
         ...(isUnderAge && {
@@ -327,8 +342,6 @@ function StudentRegistrationForm() {
         throw new Error('Invalid student creation response');
       }
 
-      
-
       // Generate receipt
       await generateReceipt(studentId);
 
@@ -345,8 +358,6 @@ function StudentRegistrationForm() {
       setIsLoading(false);
     }
   }
-
- 
 
   const handleSubmissionError = (error) => {
     if (error.response?.data) {
@@ -497,75 +508,62 @@ function StudentRegistrationForm() {
 
             {/* Address Section */}
             <h5 className="mt-4 mb-3">Address Information</h5>
+<Row className="mb-3">
+  <Form.Group as={Col} md="12" className="position-relative">
+    <Form.Label>Address</Form.Label>
+    <Form.Control
+      as="textarea"
+      rows={2}
+      name="address"
+      placeholder="Enter address"
+      {...formik.getFieldProps('address')}
+    />
+  </Form.Group>
+</Row>
+          </div>
+        </div>
+
+        {/* Course Selection Section */}
+        <div className="card mb-4">
+          <div className="card-header">
+            <h4>Course Information</h4>
+          </div>
+          <div className="card-body">
             <Row className="mb-3">
-              <Form.Group as={Col} md="3" className="position-relative">
-                <Form.Label>Country</Form.Label>
+              <Form.Group as={Col} md="6" className="position-relative">
+                <Form.Label>Select Course <span className="text-danger">*</span></Form.Label>
                 <Form.Select
-                  name="country"
-                  {...formik.getFieldProps('country')}
-                  onChange={handleCountryChange}
+                  name="course"
+                  {...formik.getFieldProps('course')}
+                  onChange={handleCourseChange}
+                  isInvalid={formik.touched.course && !!formik.errors.course}
                 >
-                  <option value="">Select Country</option>
-                  {countries.map((country) => (
-                    <option key={country.iso2} value={country.name}>
-                      {country.name}
+                  <option value="">Select Course</option>
+                  {coursesData.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.title} - {course.price} DH
                     </option>
                   ))}
                 </Form.Select>
+                <Form.Control.Feedback type="invalid" tooltip>
+                  {formik.errors.course}
+                </Form.Control.Feedback>
               </Form.Group>
 
-              <Form.Group as={Col} md="3" className="position-relative">
-                <Form.Label>State</Form.Label>
-                <Form.Select
-                  name="state"
-                  {...formik.getFieldProps('state')}
-                  onChange={handleStateChange}
-                  disabled={!selectedCountry}
-                >
-                  <option value="">Select State</option>
-                  {states.map((state) => (
-                    <option key={state.id} value={state.name}>
-                      {state.name}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-
-              <Form.Group as={Col} md="3" className="position-relative">
-                <Form.Label>City</Form.Label>
-                {cities.length > 0 ? (
-                  <Form.Select
-                    name="city"
-                    {...formik.getFieldProps('city')}
-                    disabled={!selectedState}
-                  >
-                    <option value="">Select City</option>
-                    {cities.map((city) => (
-                      <option key={city.id} value={city.name}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                ) : (
+              {selectedCourse && (
+                <Form.Group as={Col} md="6" className="position-relative">
+                  <Form.Label>Course Price</Form.Label>
                   <Form.Control
                     type="text"
-                    name="city"
-                    placeholder="Enter city"
-                    {...formik.getFieldProps('city')}
-                    disabled={!selectedState}
+                    value={`${selectedCourse.price} DH`}
+                    readOnly
+                    className="bg-light"
                   />
-                )}
-              </Form.Group>
-
-              <Form.Group as={Col} md="3" className="position-relative">
-                <Form.Label>Street</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="street"
-                  placeholder="Street address"
-                  {...formik.getFieldProps('street')}
-                />
-              </Form.Group>
+                  <Form.Text className="text-muted">
+                    Duration: {selectedCourse.duration} | {selectedCourse.description}
+                  </Form.Text>
+                </Form.Group>
+              )}
             </Row>
           </div>
         </div>
@@ -679,60 +677,119 @@ function StudentRegistrationForm() {
           </div>
         )}
 
-       
-{/* Advance Payment Section */}
-<div className="card mb-4">
-  <div className="card-header">
-    <h4>Advance Payment</h4>
-  </div>
-  <div className="card-body">
-    {/* Free Student Option */}
-    <Form.Group className="mb-3">
-      <Form.Check 
-        type="switch"
-        id="free-student"
-        label="Étudiant gratuit"
-        checked={formik.values.isFree}
-        onChange={(e) => {
-          formik.setFieldValue('isFree', e.target.checked);
-          // Si étudiant gratuit, réinitialiser l'avance
-          if (e.target.checked) {
-            formik.setFieldValue('courseFeesPaid', 0);
-          }
-        }}
-        className={`me-3 fs-4 ${formik.values.isFree ? "text-danger" : ''}`}
-      />
-    </Form.Group>
+        {/* Payment Information Section */}
+        <div className="card mb-4">
+          <div className="card-header">
+            <h4>Payment Information</h4>
+          </div>
+          <div className="card-body">
+            {/* Free Student Option */}
+            <Form.Group className="mb-3">
+              <Form.Check 
+                type="switch"
+                id="free-student"
+                label="Free Student"
+                checked={formik.values.isFree}
+                onChange={(e) => {
+                  formik.setFieldValue('isFree', e.target.checked);
+                  if (e.target.checked) {
+                    formik.setFieldValue('courseFeesPaid', 0);
+                  }
+                }}
+              />
+            </Form.Group>
 
-    {/* Advance Payment - Disabled if free student */}
-    {!formik.values.isFree && (
-      <Row className="mb-3">
-        <Form.Group as={Col} md="6" className="position-relative">
-          <Form.Label>Advance Payment Amount</Form.Label>
-          <Form.Control
-            type="number"
-            name="courseFeesPaid"
-            placeholder="Enter advance payment amount"
-            min="0"
-            {...formik.getFieldProps('courseFeesPaid')}
-            isInvalid={formik.touched.courseFeesPaid && !!formik.errors.courseFeesPaid}
-          />
-          <Form.Control.Feedback type="invalid" tooltip>
-            {formik.errors.courseFeesPaid}
-          </Form.Control.Feedback>
-          <Form.Text className="text-muted">
-            Montant de l'avance pour l'étudiant (sera automatiquement affiché lors de l'ajout de classe)
-          </Form.Text>
-        </Form.Group>
+            {/* Payment fields - only show if not free */}
+            {!formik.values.isFree && selectedCourse && (
+              <Row className="mb-3">
+                <Form.Group as={Col} md="4" className="position-relative">
+                  <Form.Label>Course Total Price</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={`${selectedCourse.price} DH`}
+                    readOnly
+                    className="bg-light"
+                  />
+                </Form.Group>
 
-        
-      </Row>
-    )}
-  </div>
-</div>
+                <Form.Group as={Col} md="4" className="position-relative">
+                  <Form.Label>Advance Payment</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="courseFeesPaid"
+                    placeholder="Enter advance payment"
+                    min="0"
+                    max={selectedCourse.price}
+                    step="0.01"
+                    {...formik.getFieldProps('courseFeesPaid')}
+                    isInvalid={formik.touched.courseFeesPaid && !!formik.errors.courseFeesPaid}
+                  />
+                  <Form.Control.Feedback type="invalid" tooltip>
+                    {formik.errors.courseFeesPaid}
+                  </Form.Control.Feedback>
+                  <Form.Text className="text-muted">
+                    Enter the amount paid in advance (0 to {selectedCourse.price} DH)
+                  </Form.Text>
+                </Form.Group>
 
-        {/* Submit Button */}
-        <div className="d-flex justify-content-end gap-3">
+                <Form.Group as={Col} md="4" className="position-relative">
+                  <Form.Label>Remaining Amount</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={`${remainingAmount} DH`}
+                    readOnly
+                    className={`${remainingAmount > 0 ? 'bg-warning-subtle' : 'bg-success-subtle'}`}
+                  />
+                  {remainingAmount > 0 && (
+                    <Form.Text className="text-warning">
+                      <small>⚠️ Student still owes {remainingAmount} DH</small>
+                    </Form.Text>
+                  )}
+                  {remainingAmount === 0 && Number(formik.values.courseFeesPaid) > 0 && (
+                    <Form.Text className="text-success">
+                      <small>✅ Course fully paid</small>
+                    </Form.Text>
+                  )}
+                </Form.Group>
+              </Row>
+            )}
+
+            {/* Payment Status Summary */}
+            {selectedCourse && !formik.values.isFree && (
+              <Alert variant={remainingAmount > 0 ? 'warning' : 'success'} className="mt-3">
+                <Alert.Heading className="h6">Payment Summary</Alert.Heading>
+                <div className="d-flex justify-content-between">
+                  <span>Course: {selectedCourse.title}</span>
+                  <span>{selectedCourse.price} DH</span>
+                </div>
+                <div className="d-flex justify-content-between">
+                  <span>Advance Payment:</span>
+                  <span>-{Number(formik.values.courseFeesPaid) || 0} DH</span>
+                </div>
+                <hr />
+                <div className="d-flex justify-content-between fw-bold">
+                  <span>Remaining Balance:</span>
+                  <span>{remainingAmount} DH</span>
+                </div>
+                {remainingAmount > 0 && (
+                  <small className="text-muted d-block mt-2">
+                    Student will need to pay the remaining balance before or during the course.
+                  </small>
+                )}
+              </Alert>
+            )}
+
+            {formik.values.isFree && (
+              <Alert variant="info">
+                <Alert.Heading className="h6">Free Student</Alert.Heading>
+                This student is enrolled for free. No payment is required.
+              </Alert>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="d-flex justify-content-between align-items-center mb-4">
           <Button
             variant="secondary"
             onClick={() => navigate(`${getBaseRoute()}/student`)}
@@ -740,16 +797,58 @@ function StudentRegistrationForm() {
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isLoading}
-            className="px-4"
-          >
-            {isLoading ? 'Registering...' : 'Register Student'}
-          </Button>
+          
+          <div className="d-flex gap-2">
+            <Button
+              variant="outline-primary"
+              onClick={() => formik.resetForm()}
+              disabled={isLoading}
+            >
+              Reset Form
+            </Button>
+            
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isLoading || !formik.isValid}
+              className="d-flex align-items-center gap-2"
+            >
+              {isLoading && (
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              )}
+              {isLoading ? 'Registering...' : 'Register Student'}
+            </Button>
+          </div>
         </div>
+
+        {/* Form Validation Summary */}
+        {Object.keys(formik.errors).length > 0 && formik.submitCount > 0 && (
+          <Alert variant="danger" className="mb-4">
+            <Alert.Heading className="h6">Please correct the following errors:</Alert.Heading>
+            <ul className="mb-0">
+              {Object.entries(formik.errors).map(([field, error]) => (
+                <li key={field}>
+                  <strong>{field.charAt(0).toUpperCase() + field.slice(1)}:</strong> {error}
+                </li>
+              ))}
+            </ul>
+          </Alert>
+        )}
       </Form>
+
+      {/* Add Course Modal */}
+      <Modal show={showAddCourseModal} onHide={() => setShowAddCourseModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Add New Course</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <AddCourse 
+            inModal={true} 
+            onCourseAdded={handleNewCourseAdded}
+            handleClose={() => setShowAddCourseModal(false)}
+          />
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }

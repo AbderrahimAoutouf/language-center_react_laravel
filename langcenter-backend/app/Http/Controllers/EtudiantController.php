@@ -49,6 +49,7 @@ class EtudiantController extends Controller
         'parent_relationship' => 'nullable|in:père,mère,tuteur,frère,sœur',
         'gratuit' => 'nullable|boolean',
         'photo_authorized' => 'required|boolean',
+        'cours_id' => 'nullable|exists:cours,id',
     ]);
 
     $etudiant = new Etudiant();
@@ -62,6 +63,7 @@ class EtudiantController extends Controller
     $etudiant->gratuit = $data['gratuit'] ?? false;
     $etudiant->photo_authorized = $data['photo_authorized'];
     $etudiant->avance = $data['avance'] ?? 0;
+    $etudiant->cours_id = $data['cours_id']; 
 
 
     $birthDate = new DateTime($data['date_naissance']);
@@ -126,7 +128,8 @@ public function generateReceipt($id)
             $etudiant = Etudiant::with([
                 'inscrireClasses.payments', 
                 'inscrireClasses.class.cours',
-                'parent_'
+                'parent_',
+                'cours' 
             ])->find($id);
 
             if (!$etudiant) {
@@ -139,7 +142,7 @@ public function generateReceipt($id)
             // Get the inscription and related data
             $inscription = $etudiant->inscrireClasses->first();
             $classe = $inscription ? $inscription->class : null;
-            $cours = $classe ? $classe->cours : null;
+            $cours = $etudiant->cours;
             $payment = $inscription && $inscription->payments ? $inscription->payments->first() : null;
 
             Log::info("Receipt data - Inscription: " . ($inscription ? 'found' : 'not found'));

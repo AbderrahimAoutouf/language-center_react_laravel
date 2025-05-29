@@ -43,7 +43,7 @@ class EtudiantResource extends JsonResource
             'photo_permission' => $this->photo_authorized ? 'Authorized' : 'Not Authorized',
             
             // Family Information
-            'parent' => $this->parent,
+            'parent' => $this->parent_,
             'parent_name' => $this->when($this->parent, function() {
                 return is_string($this->parent) ? $this->parent : 
                        (isset($this->parent['name']) ? $this->parent['name'] : 'Parent Information Available');
@@ -75,34 +75,11 @@ class EtudiantResource extends JsonResource
             'registration_duration' => $this->created_at ? $this->created_at->diffForHumans() : null,
             
             // Classes and Courses with detailed information
-            'classes' => $this->when($this->relationLoaded('inscrireClasses'), function() {
-                return $this->inscrireClasses->map(function ($inscrireClass) {
-                    return [
-                        'id' => $inscrireClass->class_->id ?? null,
-                        'name' => $inscrireClass->class_->name ?? null,
-                        'level' => $inscrireClass->class_->level ?? null,
-                        'school_year' => $inscrireClass->class_->school_year ?? null,
-                        'enrollment_status' => $inscrireClass->status ?? 'Enrolled',
-                        'enrollment_date' => $inscrireClass->created_at ?? null
-                    ];
-                })->filter(function($class) {
-                    return !is_null($class['id']);
-                });
+            'classes' => $this->inscrireClasses->map(function ($inscrireClass) {
+                return $inscrireClass->class_;
             }),
-            
-            'cours' => $this->when($this->relationLoaded('inscrireClasses'), function() {
-                return $this->inscrireClasses->map(function ($inscrireClass) {
-                    if ($inscrireClass->class_ && $inscrireClass->class_->cours) {
-                        return [
-                            'id' => $inscrireClass->class_->cours->id,
-                            'title' => $inscrireClass->class_->cours->title,
-                            'description' => $inscrireClass->class_->cours->description ?? null,
-                            'duration' => $inscrireClass->class_->cours->duration ?? null,
-                            'category' => $inscrireClass->class_->cours->category ?? null
-                        ];
-                    }
-                    return null;
-                })->filter()->unique('id');
+            'cours' => $this->inscrireClasses->map(function ($inscrireClass) {
+                return $inscrireClass->class_ != null ? $inscrireClass->class_->cours : null;
             }),
             
             // Statistical Information

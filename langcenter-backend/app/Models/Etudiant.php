@@ -46,6 +46,17 @@ class Etudiant extends Model
     {
         return $this->hasMany(InscrireClass::class, 'etudiant_id', 'id');
     }
+    // In Etudiant.php model
+public function classes()
+{
+    return $this->belongsToMany(Classe::class, 'inscrire_classes', 'etudiant_id', 'classe_id')
+                ->withPivot('status', 'negotiated_price');
+}
+// app/Models/Etudiant.php
+public function cours()
+{
+    return $this->belongsTo(Cours::class, 'cours_id');
+}
     public function level()
     {
         return $this->hasOne(LanguageLevel::class, 'id', 'level_id');
